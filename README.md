@@ -1,4 +1,11 @@
+<p align="center">
+  <img src="assets/geotrace-banner.png" alt="GeoTrace — Geolocate • Chronolocate" width="100%">
+</p>
+
+<div align="center">
 # GeoTrace
 
-MCP server for open source content verification like pictures or videos. It can answer two questions: where was the image taken and when. It uses shadows, sun, moon and weather for its predictions.
+### MCP for open source content verification from images.
 
+**Get the position and the time of any picture**
+</div>
