@@ -22,7 +22,7 @@ def _clean(v):
 
 @mcp.tool(
     name="extract_metadata_from_url",
-    description="Extracts metadata of an image from a given url."
+    description="Extracts metadata of an image from a given url. Ask for the url if none is given."
 )
 
 async def extract_metadata_from_url(
@@ -45,6 +45,29 @@ async def extract_metadata_from_url(
                      for k, v in exif.items() if k not in (0x8769, 0x8825)},
             "exif_details": {ExifTags.TAGS.get(k, k): _clean(v)
                              for k, v in exif.get_ifd(ExifTags.IFD.Exif).items()},
+            "gps": {ExifTags.GPSTAGS.get(k, k): _clean(v)
+                    for k, v in exif.get_ifd(ExifTags.IFD.GPSInfo).items()}
+        }
+
+@mcp.tool(
+        name="extract_metadata_from_filepath",
+        description="Extracts metadata of an image located in the local device. Ask for the path if none is given."
+)
+
+async def extract_metadata_from_filepath(
+    ctx: Context,
+    image_path: str = Field(description="Path to the image whose metadata is going to be extracted.")
+) -> dict :
+    with Image.open(image_path) as img:
+        exif = img.getexif()
+        await ctx.info(f"Image {img.format} {img.size}, {len(exif)} EXIF labels")
+        return {
+            "format": img.format,
+            "size": img.size,
+            "exif": {ExifTags.TAGS.get(k, k): _clean(v)
+                        for k, v in exif.items() if k not in (0x8769, 0x8825)},
+            "exif_details": {ExifTags.TAGS.get(k, k): _clean(v)
+                                for k, v in exif.get_ifd(ExifTags.IFD.Exif).items()},
             "gps": {ExifTags.GPSTAGS.get(k, k): _clean(v)
                     for k, v in exif.get_ifd(ExifTags.IFD.GPSInfo).items()}
         }
