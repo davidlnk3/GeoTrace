@@ -50,4 +50,10 @@ async def extract_metadata_from_url(
         }
 
 
+def main():
+    mcp.run()
+
+if __name__ == "__main__":
+    main()
+
     
