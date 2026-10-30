@@ -15,6 +15,12 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".heic", ".webp"
 
 MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 
+async def _load_image(source: str) -> bytes:
+    """Allows either an URL or a local path. Returns the image bytes."""
+    if source.startswith(("http://", "https://")):
+        return await _download_image(source)
+    return await asyncio.to_thread(_read_local_file, source)
+
 async def _download_image(url: str) -> bytes:
     """Downloads an image from an url and returns its bytes"""
     async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
@@ -60,36 +66,15 @@ def _clean(v):
 
 
 @mcp.tool(
-    name="extract_metadata_from_url",
-    description="Downloads an image from a URL and extracts its EXIF metadata, "
-                "camera data and GPS. Ask for the URL if none is given.",
-)
-async def extract_metadata_from_url(
-    image_url: Annotated[str, Field(description="Direct link to the image file.")],
-    ctx: Context,
-) -> dict:
-    data = await _download_image(image_url)
-    metadata = _read_metadata(data)
-    await ctx.info(f"Image {metadata['format']} {metadata['size']}, "
-                   f"{len(metadata['exif'])} EXIF labels")
-    return metadata
-
-
-@mcp.tool(
-    name="extract_metadata_from_filepath",
-    description="Extracts EXIF metadata, camera data and GPS from an image on the "
-                "user's computer. Ask for the file path if none is given.",
+    name="extract_metadata",
+    description="Extracts EXIF metadata, camera data and GPS from an image given by a direct URL to it or a path from the user's computer. Ask for the file path if none is given.",
 )
 async def extract_metadata_from_filepath(
-    image_filepath: Annotated[str, Field(description="Absolute path to the image file.")],
+    image: Annotated[str, Field(description="URL or path of the image.")],
     ctx: Context,
 ) -> dict:
-    data = await asyncio.to_thread(_read_local_file, image_filepath)
-    metadata = _read_metadata(data)
-    await ctx.info(f"Image {metadata['format']} {metadata['size']}")
-    return metadata
+    return _read_metadata(await _load_image(image))
 
-# TODO: sun_elevation_from_shadow()
 
 def main():
     mcp.run()
