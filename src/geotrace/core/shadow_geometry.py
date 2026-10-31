@@ -9,7 +9,7 @@ Polygons = list[list[list[int]]]  # as returned by the Space: [[[x, y], ...], ..
 class ShadowGeometry:
     pair_score: float            # model confidence (min between object and shadow)
     shadow_direction_deg: float  # in the image, clockwise from "up" (0 = up, 90 = right)
-    estimated_sun_elevation_deg: float  # atan(height / length); approximate
+    sun_elevation_deg: float  # atan(height / length), corrected for camera tilt if given
 
 
 def _points(polygons: Polygons) -> list[Point]:
@@ -26,7 +26,8 @@ def _extreme(points: list[Point], highest: bool) -> Point:
 def analyze_pair(object_polygons: Polygons, 
                  shadow_polygons: Polygons,
                  obj_score: float,
-                 sha_score: float) -> ShadowGeometry:
+                 sha_score: float,
+                 camera_tilt_deg: float) -> ShadowGeometry:
     obj, sha = _points(object_polygons), _points(shadow_polygons)
     if not obj or not sha:
         raise ValueError("The pair needs both an object and a shadow")
@@ -41,8 +42,12 @@ def analyze_pair(object_polygons: Polygons,
     dx, dy = tip[0] - base[0], tip[1] - base[1]
     direction = math.degrees(math.atan2(dx, -dy)) % 360
 
+    # The ground depth shrinks by sin(tilt) and the vertical by cos(tilt),
+    # so tan(real) = tan(image) * tan(tilt). tilt = 0 is a horizontal camera.
+    elevation = math.atan(math.tan(math.atan2(height, length)) * math.tan(math.radians(camera_tilt_deg)))
+
     return ShadowGeometry(
         pair_score=round(min(obj_score, sha_score), 3),
         shadow_direction_deg=round(direction, 1),
-        estimated_sun_elevation_deg=round(math.degrees(math.atan2(height, length)), 1),
+        sun_elevation_deg=round(math.degrees(elevation), 1)
     )

@@ -10,11 +10,19 @@ from dataclasses import asdict
 
 @mcp.tool(
     name="detect_shadows",
-    description="Gets the shadows related to the objects from an image."
+    description="Returns the shadows information related to the objects from an image. "
+    "It provides confidence (pair_score), "
+    "shadow direction relative to the image being clockwise from 'up' (0 = up, 90 = right) which may be used later for azimuth calculation (shadow_direction_deg), "
+    "and sun elevation degrees (estimated_sun_elevation_deg)."
 )
 async def detect_shadows(
     image: Annotated[str, Field(description="URL or path of the image.")],
-    ctx: Context
+    camera_tilt_deg: Annotated[float, Field(
+        description="Angle of the camera's optical axis below the horizon, in degrees (0 = horizontal, 90 = straight down). "
+        "Required. Used to correct the perspective foreshortening of the sun elevation.",
+        gt=0, lt=90,
+    )],
+    ctx: Context,
 ) -> dict:
     await ctx.info("Analizing the image with SSIS")
     result = await ssis.detect(image)
@@ -23,6 +31,7 @@ async def detect_shadows(
         analyze_pair(
             p["object"]["polygons"], p["shadow"]["polygons"],
             p["object"]["score"], p["shadow"]["score"],
+            camera_tilt_deg=camera_tilt_deg,
         )
         for p in result["pairs"]
         if "object" in p and "shadow" in p
