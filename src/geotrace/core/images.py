@@ -3,11 +3,14 @@ import io
 import httpx
 from PIL import Image, ExifTags, ImageFile
 from PIL.TiffImagePlugin import IFDRational
+from pillow_heif import register_heif_opener
 from pathlib import Path
 from dataclasses import dataclass
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".heic", ".webp"}
 MAX_BYTES = 20 * 1024 * 1024  # 20 MB
+
+register_heif_opener()
 
 @dataclass
 class ImageMetadata:

@@ -1,1 +1,1 @@
-from geotrace.tools import metadata, shadows
+from geotrace.tools import metadata, shadows, view_image
