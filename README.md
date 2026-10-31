@@ -13,7 +13,7 @@
 
 ## License
 
-GeoTrace is licensed under the PolyForm Noncommercial License 1.0.0. See LICENSE.
+GeoTrace is licensed under MIT License. See LICENSE.
 
 ### Third-party components
 
