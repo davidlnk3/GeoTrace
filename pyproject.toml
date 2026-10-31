@@ -1,16 +1,20 @@
 [project]
 name = "geotrace"
+license = "MIT"
+license-files = ["LICENSE"]
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
+    "gradio-client>=2.7.2",
     "httpx>=0.28.1",
+    "huggingface-hub>=2.4.0",
     "mcp>=2.3",
     "pillow>=13.0.0",
     "pydantic>=2.14.1",
 ]
 
 [project.scripts]
-geotrace = "geotrace.server:main"
+geotrace = "geotrace.main:main"
 
 [build-system]
 requires = ["hatchling"]
