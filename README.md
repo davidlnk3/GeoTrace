@@ -69,13 +69,8 @@ GeoTrace is licensed under MIT License. See LICENSE.
 
 | Component | Used for | License |
 |---|---|---|
-| [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [SSIS / SSISv2](https://github.com/stevewongv/SSIS) | Object-shadow pair detection, run in a separate Hugging Face Space | **Non-commercial use only** |
-
-### GeoCalib
-
-GeoCalib is used unmodified as a dependency. Its weights are downloaded from the
-official source on first use and are not redistributed with GeoTrace.
+| [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 
 ### SSIS
 
@@ -84,3 +79,8 @@ https://github.com/stevewongv/SSIS, which is licensed for non-commercial use onl
 It runs in a separate Hugging Face Space (davidlnk3/ssis-demo) that keeps the
 original license and includes modifications described there.
 For commercial use of SSIS, contact its authors.
+
+### GeoCalib
+
+GeoCalib is used unmodified as a dependency. Its weights are downloaded from the
+official source on first use and are not redistributed with GeoTrace.
