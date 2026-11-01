@@ -14,6 +14,16 @@ dependencies = [
     "pydantic>=2.14.1",
 ]
 
+[project.optional-dependencies]
+# Camera calibration (core/calibration.py). Not on PyPI, so it is installed from git.
+calibration = [
+    "geocalib @ git+https://github.com/cvg/GeoCalib.git",
+    "torch",
+    "torchvision",
+    "opencv-python",
+    "kornia",
+]
+
 [project.scripts]
 geotrace = "geotrace.main:main"
 
@@ -23,3 +33,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/geotrace"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
