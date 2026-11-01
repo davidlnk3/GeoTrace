@@ -8,7 +8,7 @@ Polygons = list[list[list[int]]]  # as returned by the Space: [[[x, y], ...], ..
 @dataclass
 class ShadowGeometry:
     pair_score: float            # model confidence (min between object and shadow)
-    shadow_direction_deg: float  # in the image, clockwise from "up" (0 = up, 90 = right)
+    shadow_direction_deg: float  # on the ground, clockwise from the camera's forward direction (0 = away, 90 = right)
     sun_elevation_deg: float     # atan(height / length), calibrated if a camera model is given
 
 
@@ -23,7 +23,7 @@ def _extreme(points: list[Point], highest: bool) -> Point:
     return (sum(xs) / len(xs), y)
 
 
-def sun_elevation_calibrated(top_px, base_px, tip_px, K, gravity) -> float:
+def sun_elevation_calibration(top_px, base_px, tip_px, K, gravity) -> float:
     """Sun elevation (degrees) from 3 pixels and the camera calibration.
 
     K: 3x3 intrinsic matrix (focal and centre of the image).
@@ -53,6 +53,33 @@ def sun_elevation_calibrated(top_px, base_px, tip_px, K, gravity) -> float:
     return float(np.degrees(np.arctan2(height, length)))
 
 
+def shadow_direction_calibration(base_px, tip_px, K, gravity) -> float:
+    """Direction of the shadow on the ground, clockwise seen from above, measured from the
+    camera's forward direction (0 = away from the camera, 90 = to the right).
+
+    Measured on the ground plane, so it does not change with the camera roll.
+    Uses the same calibrated ground points as sun_elevation_calibrated."""
+    import numpy as np
+
+    K_inv = np.linalg.inv(K)
+    g = gravity / np.linalg.norm(gravity)
+
+    def on_ground(px):
+        d = K_inv @ np.array([px[0], px[1], 1.0])
+        return d / (d @ g)
+
+    def horizontal(v):
+        return v - (v @ g) * g
+
+    shadow = horizontal(on_ground(tip_px) - on_ground(base_px))
+    forward = horizontal(np.array([0.0, 0.0, 1.0]))
+    # Horizontal right from gravity and forward. The camera's x axis is not used:
+    # it tilts with the roll, so it would make the angle depend on the roll.
+    right = np.cross(g, forward)
+    angle = math.degrees(math.atan2(shadow @ right, shadow @ forward))
+    return angle % 360
+
+
 def analyze_pair(object_polygons: Polygons,
                  shadow_polygons: Polygons,
                  obj_score: float,
@@ -70,10 +97,8 @@ def analyze_pair(object_polygons: Polygons,
     # The farthest point of a polygon from a given point is always a vertex
     tip = max(sha, key=lambda p: math.dist(p, base))
 
-    dx, dy = tip[0] - base[0], tip[1] - base[1]
-    direction = math.degrees(math.atan2(dx, -dy)) % 360
-
-    elevation = sun_elevation_calibrated(top, base, tip, K, gravity)
+    direction = shadow_direction_calibration(base, tip, K, gravity)
+    elevation = sun_elevation_calibration(top, base, tip, K, gravity)
 
     return ShadowGeometry(
         pair_score=round(min(obj_score, sha_score), 3),

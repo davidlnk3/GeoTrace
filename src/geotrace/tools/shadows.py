@@ -14,7 +14,7 @@ from dataclasses import asdict
     name="detect_shadows",
     description="Returns the shadows information related to the objects from an image. "
     "It provides confidence (pair_score), "
-    "shadow direction relative to the image being clockwise from 'up' (0 = up, 90 = right) which may be used later for azimuth calculation (shadow_direction_deg), "
+    "shadow direction on the ground, clockwise seen from above from the camera's forward direction (0 = away from the camera, 90 = right), independent of the camera roll (shadow_direction_deg), "
     "and sun elevation degrees (sun_elevation_deg). "
     "The camera is calibrated with GeoCalib and returned in 'camera', and the sun elevation is computed from the calibrated camera geometry."
 )
