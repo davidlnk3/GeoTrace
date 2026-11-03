@@ -8,13 +8,12 @@ Torch and transformers are imported lazily, so the rest of GeoTrace still
 starts when they are not installed.
 """
 import io
-import os
 from pathlib import Path
 
 import numpy as np
 
-DEFAULT_CHECKPOINT = Path("/Users/david/Documents/ADOLE/runs/dinov2/best.pt")
-CHECKPOINT_ENV = "GEOTRACE_SUN_CHECKPOINT"
+# Repository root is four levels up from this file: src/geotrace/core/sun_model.py
+CHECKPOINT = Path(__file__).resolve().parents[3] / "models" / "sun" / "best.pt"
 
 CROP_SIZE = 128          # input size used in training (allweather/data.py)
 BACKBONE_SIZE = 126      # DINOv2 input (multiple of the 14-px patch size)
@@ -26,10 +25,6 @@ AZ_BIN = 360.0 / N_AZ
 EL_BIN = EL_MAX / N_EL
 
 _model = None
-
-
-def checkpoint_path() -> Path:
-    return Path(os.environ.get(CHECKPOINT_ENV, DEFAULT_CHECKPOINT)).expanduser()
 
 
 def _bin_centers():
@@ -93,13 +88,9 @@ def load_model():
 
     import torch
 
-    path = checkpoint_path()
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"Sun model checkpoint not found at {path}. "
-            f"Set {CHECKPOINT_ENV} to the path of best.pt."
-        )
-    state = torch.load(path, map_location="cpu", weights_only=True)
+    if not CHECKPOINT.is_file():
+        raise FileNotFoundError(f"Sun model checkpoint not found at {CHECKPOINT}.")
+    state = torch.load(CHECKPOINT, map_location="cpu", weights_only=True)
     if state.get("arch") != "dinov2":
         raise ValueError(f"Checkpoint arch is {state.get('arch')!r}; expected 'dinov2'.")
 

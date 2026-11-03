@@ -70,11 +70,9 @@ Returns:
 - `sun_altitude_deg`: sun elevation above the horizon, 0 to 90.
 - `sun_azimuth_relative_camera_deg`: sun direction clockwise from the camera's forward direction, in [0, 360). 0 = straight ahead, 90 = right, 180 = behind.
 
-This tool is a reimplementation of the sun-position part of *All-Weather Deep Outdoor Lighting Estimation* (Zhang et al., CVPR 2019). It is an independent implementation, not the authors' code, and it departs from the paper in several ways: a DINOv2-small backbone, sun labels from astral and the brightest pixel instead of PanoNet estimates, and crops that keep the sun outside the frame.
-
 The model reads the sun from scene cues (shadows, lighting, sky brightness), so it is an estimate. On the validation set of the training project, the median errors were 1.6° for altitude and 5.6° for azimuth, with a long tail of large azimuth errors.
 
-Requires `torch` and `transformers`, which are not in the default dependencies. Install them in the GeoTrace environment with `pip install torch transformers`. The checkpoint is read from `/Users/david/Documents/ADOLE/runs/dinov2/best.pt`. Set `GEOTRACE_SUN_CHECKPOINT` to use another `best.pt`.
+Requires `torch` and `transformers`, which are not in the default dependencies. Install them in the GeoTrace environment with `pip install torch transformers`. The model weights are in the repository at `models/sun/best.pt`, so the tool needs no external files.
 
 ## License
 
@@ -86,6 +84,7 @@ GeoTrace is licensed under MIT License. See LICENSE.
 |---|---|---|
 | [SSIS / SSISv2](https://github.com/stevewongv/SSIS) | Object-shadow pair detection, run in a separate Hugging Face Space | **Non-commercial use only** |
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) (Zhang et al., CVPR 2019) | Reimplementation of the sun-position part, used by `estimate_sun` | Independent implementation, see below |
 
 ### SSIS
 
@@ -99,3 +98,7 @@ For commercial use of SSIS, contact its authors.
 
 GeoCalib is used unmodified as a dependency. Its weights are downloaded from the
 official source on first use and are not redistributed with GeoTrace.
+
+### All-Weather Deep Outdoor Lighting Estimation
+
+`estimate_sun` is a reimplementation of the sun-position part of *All-Weather Deep Outdoor Lighting Estimation* (Zhang et al., CVPR 2019). It is an independent implementation, not the authors' code, and it departs from the paper in several ways: a DINOv2-small backbone, sun labels from astral and the brightest pixel instead of PanoNet estimates, and crops that keep the sun outside the frame.
