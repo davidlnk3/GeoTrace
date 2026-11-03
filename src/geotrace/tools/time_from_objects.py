@@ -11,8 +11,7 @@ from typing import Annotated
 @mcp.tool(
     name="time_from_objects",
     description="Lists the human-made objects in an image and the interval in which each was built, "
-    "from its earliest likely build year until today, using EVA02-CLIP time probing "
-    "(arXiv:2510.19559). Use it to narrow when the photo can have been taken: the photo cannot be "
+    "from its earliest likely build year until today. Use it to narrow when the photo can have been taken: the photo cannot be "
     "older than the most recent object in it. "
     "Returns current_year, image_taken_not_before_year (the latest built_from_year), and for each "
     "object: most_likely_build_year, built_from_year (that year minus the paper's accuracy tolerance, "
