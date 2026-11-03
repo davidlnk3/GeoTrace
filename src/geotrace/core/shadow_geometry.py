@@ -97,11 +97,11 @@ def analyze_pair(object_polygons: Polygons,
     # The farthest point of a polygon from a given point is always a vertex
     tip = max(sha, key=lambda p: math.dist(p, base))
 
-    direction = shadow_direction_calibration(base, tip, K, gravity)
-    elevation = sun_elevation_calibration(top, base, tip, K, gravity)
+    sun_direction = (shadow_direction_calibration(base, tip, K, gravity) + 180) % 360
+    sun_altitude = sun_elevation_calibration(top, base, tip, K, gravity)
 
     return ShadowGeometry(
         pair_score=round(min(obj_score, sha_score), 3),
-        shadow_direction_deg=round(direction, 1),
-        sun_elevation_deg=round(elevation, 1),
+        sun_relative_azimuth_to_camera_deg=round(sun_direction, 1),
+        sun_altitude_deg=round(sun_altitude, 1),
     )

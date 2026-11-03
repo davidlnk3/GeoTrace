@@ -8,13 +8,12 @@ from typing import Annotated
 
 
 @mcp.tool(
-    name="shadow_to_time",
-    description="Given a location and the sun's position (elevation and azimuth, as obtained from "
-    "shadows detection), returns the probable dates and times (UTC) when the sun was in that position. "
-    "Azimuth is compass degrees clockwise from north; a shadow points opposite the sun, "
-    "so sun azimuth = shadow direction + 180 (mod 360). Results are sorted best match first.",
+    name="time_from_sun_position",
+    description="Given a location and the sun's position (elevation and azimuth), returns the "
+    "probable dates and times (UTC) when the sun was in that position. "
+    "Results are sorted best match first.",
 )
-async def shadow_to_time(
+async def time_from_sun_position(
     latitude: Annotated[float, Field(description="Latitude in decimal degrees, north positive.", ge=-90, le=90)],
     longitude: Annotated[float, Field(description="Longitude in decimal degrees, east positive.", ge=-180, le=180)],
     sun_elevation: Annotated[float, Field(description="Sun elevation above the horizon in degrees.", gt=0, le=90)],
