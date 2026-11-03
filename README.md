@@ -70,6 +70,8 @@ Returns:
 - `sun_altitude_deg`: sun elevation above the horizon, 0 to 90.
 - `sun_azimuth_relative_camera_deg`: sun direction clockwise from the camera's forward direction, in [0, 360). 0 = straight ahead, 90 = right, 180 = behind.
 
+This tool is a reimplementation of the sun-position part of *All-Weather Deep Outdoor Lighting Estimation* (Zhang et al., CVPR 2019). It is an independent implementation, not the authors' code, and it departs from the paper in several ways: a DINOv2-small backbone, sun labels from astral and the brightest pixel instead of PanoNet estimates, and crops that keep the sun outside the frame.
+
 The model reads the sun from scene cues (shadows, lighting, sky brightness), so it is an estimate. On the validation set of the training project, the median errors were 1.6° for altitude and 5.6° for azimuth, with a long tail of large azimuth errors.
 
 Requires `torch` and `transformers`, which are not in the default dependencies. Install them in the GeoTrace environment with `pip install torch transformers`. The checkpoint is read from `/Users/david/Documents/ADOLE/runs/dinov2/best.pt`. Set `GEOTRACE_SUN_CHECKPOINT` to use another `best.pt`.
