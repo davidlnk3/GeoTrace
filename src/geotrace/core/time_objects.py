@@ -13,7 +13,6 @@ import io
 from datetime import date
 from functools import lru_cache
 
-import numpy as np
 from PIL import Image, ImageOps
 
 MODEL_NAME = "EVA02-L-14-336"   # best time-probing model in the paper (Table 1, MAE 6.20)
@@ -64,7 +63,9 @@ def _embed_text(model, tokenizer, texts: list[str]):
         return F.normalize(model.encode_text(tokenizer(texts)), dim=-1)
 
 
-def _softmax(logits: np.ndarray) -> np.ndarray:
+def _softmax(logits):
+    import numpy as np
+
     e = np.exp(logits - logits.max())
     return e / e.sum()
 
@@ -80,6 +81,8 @@ def time_from_objects(image_bytes: bytes, objects: list[str] | None = None) -> d
     built_until_year is today. `image_taken_not_before_year` is the latest built_from_year: if
     the objects are really in the photo, it cannot be older than the most recent of them.
     """
+    import numpy as np
+
     model, preprocess, tokenizer = _load()
     scale = float(model.logit_scale.exp().detach())
     today = date.today().year

@@ -10,8 +10,6 @@ starts when they are not installed.
 import io
 from pathlib import Path
 
-import numpy as np
-
 # Repository root is four levels up from this file: src/geotrace/core/sun_model.py
 CHECKPOINT = Path(__file__).resolve().parents[3] / "models" / "sun" / "best.pt"
 
@@ -28,6 +26,8 @@ _model = None
 
 
 def _bin_centers():
+    import numpy as np
+
     az = (np.arange(N_AZ) + 0.5) * AZ_BIN
     el = (np.arange(N_EL) + 0.5) * EL_BIN
     return az, el
@@ -101,7 +101,8 @@ def load_model():
     return model
 
 
-def _to_square_rgb(image_bytes: bytes) -> np.ndarray:
+def _to_square_rgb(image_bytes: bytes):
+    import numpy as np
     from PIL import Image, ImageOps
     try:
         import pillow_heif  # noqa: F401  (registers HEIF support; core/images.py also does this)
