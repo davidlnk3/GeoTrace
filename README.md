@@ -59,6 +59,21 @@ Given the date and time of a photo and the sun's position, returns the locations
 
 Usually two mirror-image solutions exist; both are returned, each with latitude and longitude.
 
+### `estimate_sun`
+
+Estimates the sun's altitude and its azimuth relative to the camera from a single outdoor image, with a DINOv2-small model trained on crops where the sun is outside the frame. It uses the centre square of the image.
+
+- `image`: URL or local path of the image.
+
+Returns:
+
+- `sun_altitude_deg`: sun elevation above the horizon, 0 to 90.
+- `sun_azimuth_relative_camera_deg`: sun direction clockwise from the camera's forward direction, in [0, 360). 0 = straight ahead, 90 = right, 180 = behind.
+
+The model reads the sun from scene cues (shadows, lighting, sky brightness), so it is an estimate. On the validation set of the training project, the median errors were 1.6° for altitude and 5.6° for azimuth, with a long tail of large azimuth errors.
+
+Requires `torch` and `transformers`, which are not in the default dependencies. Install them in the GeoTrace environment with `pip install torch transformers`. The checkpoint is read from `/Users/david/Documents/ADOLE/runs/dinov2/best.pt`. Set `GEOTRACE_SUN_CHECKPOINT` to use another `best.pt`.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
