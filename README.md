@@ -76,15 +76,15 @@ Usually two mirror-image solutions exist; both are returned, each with latitude 
 
 ### `time_from_objects`
 
-Lists the human-made objects in an image and the interval in which each was built, from its likely build year until today, with EVA02-CLIP time probing as in [arXiv:2510.19559](https://arxiv.org/abs/2510.19559). It helps narrow when the photo can have been taken: it cannot be older than the most recent object in it.
+Gives the interval in which each named object was built, from its likely build year until today, with EVA02-CLIP time probing as in [arXiv:2510.19559](https://arxiv.org/abs/2510.19559). It helps narrow when the photo can have been taken: it cannot be older than the most recent object in it.
 
 - `image`: URL or local path of the image.
-- `objects` (optional): object names to date, for example `["bicycle", "street lamp"]`. If omitted, the TIME10k classes (car, mobile phone, ship, musical instrument, aircraft, weapon or ammunition) are checked for presence.
+- `objects` (required): a list of object names to date, for example `["bicycle", "street lamp"]`. It must contain at least one name.
 
 Returns:
 
 - `current_year`, `image_taken_not_before_year`: the latest `built_from_year` among the objects.
-- `objects`: for each object, `most_likely_build_year`, `built_from_year`, `built_until_year` (today), `tolerance_years`, and `presence` (zero-shot probability, only when objects are detected).
+- `objects`: for each object, `most_likely_build_year`, `built_from_year`, `built_until_year` (today), and `tolerance_years`.
 
 `built_from_year` is the most likely build year minus the paper's accuracy tolerance for that year (20 years at 1700, 5 years at 2024). The paper scores whole images with prompts that name no object; adding the object name to the prompt, and the interval rule, are this project's extensions and are not evaluated in the paper.
 
