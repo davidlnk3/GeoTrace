@@ -68,8 +68,8 @@ def _clean_objects(objects: list[str]) -> list[str]:
 def time_from_objects(image_bytes: bytes, objects: list[str]) -> dict:
     """Return the build-time interval, up to today, for each object named in `objects`.
 
-    For each object, most_likely_build_year is the year with the highest image-text similarity
-    (the paper's rule). built_from_year is that year minus the paper's TAI tolerance, and
+    For each object, the build year estimate is the year with the highest image-text similarity
+    (the paper's rule). built_from_year is that estimate minus the paper's TAI tolerance, and
     built_until_year is today. `image_taken_not_before_year` is the latest built_from_year: if
     the objects are really in the photo, it cannot be older than the most recent of them.
     """
@@ -90,7 +90,6 @@ def time_from_objects(image_bytes: bytes, objects: list[str]) -> dict:
         tol = float(np.interp(estimate, TOL_YEARS, TOL_VALUES))
         results.append({
             "object": name,
-            "most_likely_build_year": estimate,
             "built_from_year": int(np.floor(estimate - tol)),
             "built_until_year": today,
             "tolerance_years": round(tol, 1),

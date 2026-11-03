@@ -15,7 +15,7 @@ from typing import Annotated
     "can have been taken: the photo cannot be older than the most recent object in it. "
     "objects is required: list the objects to date, for example after looking at the image. "
     "Returns current_year, image_taken_not_before_year (the latest built_from_year), and for each "
-    "object: most_likely_build_year, built_from_year (that year minus the paper's accuracy tolerance, "
+    "object: built_from_year (the estimated build year minus the paper's accuracy tolerance, "
     "5 to 20 years), built_until_year (today), and tolerance_years. "
     "The estimates are approximate and apply to human-made objects.",
 )

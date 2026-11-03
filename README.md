@@ -84,7 +84,7 @@ Gives the interval in which each named object was built, from its likely build y
 Returns:
 
 - `current_year`, `image_taken_not_before_year`: the latest `built_from_year` among the objects.
-- `objects`: for each object, `most_likely_build_year`, `built_from_year`, `built_until_year` (today), and `tolerance_years`.
+- `objects`: for each object, `built_from_year`, `built_until_year` (today), and `tolerance_years`.
 
 `built_from_year` is the most likely build year minus the paper's accuracy tolerance for that year (20 years at 1700, 5 years at 2024). The paper scores whole images with prompts that name no object; adding the object name to the prompt, and the interval rule, are this project's extensions and are not evaluated in the paper.
 
