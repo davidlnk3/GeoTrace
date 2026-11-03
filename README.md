@@ -74,6 +74,22 @@ The model reads the sun from scene cues (shadows, lighting, sky brightness), so 
 
 Requires `torch` and `transformers`, which are not in the default dependencies. Install them in the GeoTrace environment with `pip install torch transformers`. The model weights are in the repository at `models/sun/best.pt`, so the tool needs no external files.
 
+### `time_from_objects`
+
+Lists the human-made objects in an image and the interval in which each was built, from its likely build year until today, with EVA02-CLIP time probing as in [arXiv:2510.19559](https://arxiv.org/abs/2510.19559). It helps narrow when the photo can have been taken: it cannot be older than the most recent object in it.
+
+- `image`: URL or local path of the image.
+- `objects` (optional): object names to date, for example `["bicycle", "street lamp"]`. If omitted, the TIME10k classes (car, mobile phone, ship, musical instrument, aircraft, weapon or ammunition) are checked for presence.
+
+Returns:
+
+- `current_year`, `image_taken_not_before_year`: the latest `built_from_year` among the objects.
+- `objects`: for each object, `most_likely_build_year`, `built_from_year`, `built_until_year` (today), `tolerance_years`, and `presence` (zero-shot probability, only when objects are detected).
+
+`built_from_year` is the most likely build year minus the paper's accuracy tolerance for that year (20 years at 1700, 5 years at 2024). The paper scores whole images with prompts that name no object; adding the object name to the prompt, and the interval rule, are this project's extensions and are not evaluated in the paper.
+
+Requires `torch`, `transformers` and `open_clip_torch`: `pip install torch open_clip_torch`. The EVA02-CLIP weights (`EVA02-L-14-336`, `merged2b_s6b_b61k`) are downloaded on first use.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
@@ -85,6 +101,7 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [SSIS / SSISv2](https://github.com/stevewongv/SSIS) | Object-shadow pair detection, run in a separate Hugging Face Space | **Non-commercial use only** |
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) (Zhang et al., CVPR 2019) | Reimplementation of the sun-position part, used by `estimate_sun` | Independent implementation, see below |
+| [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
 
 ### SSIS
 
