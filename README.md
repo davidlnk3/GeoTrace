@@ -23,7 +23,7 @@ Returns the image so the model can describe its visual clues.
 
 - `image`: URL or local path of the image.
 
-### `detect_shadows`
+### `relative_sun_position_from_shadows`
 
 Detects object-shadow pairs in an image and computes the sun elevation and the shadow direction of each pair. The camera is calibrated with GeoCalib, and the sun elevation is computed from that calibration. Requires the `calibration` extra: `pip install -e ".[calibration]"`.
 
@@ -35,31 +35,7 @@ Returns:
 - `num_pairs`, `pairs`: each pair has `pair_score` (detection confidence), `shadow_direction_deg` (on the ground, clockwise seen from above from the camera's forward direction: 0 = away from the camera, 90 = right) and `sun_elevation_deg`.
 - `skipped`: pairs that could not be computed, with the reason (for example, a base or tip above the horizon).
 
-### `shadow_to_time`
-
-Given a location and the sun's position, returns the dates and times (UTC) when the sun was in that position.
-
-- `latitude`, `longitude`: decimal degrees.
-- `sun_elevation`: degrees above the horizon, greater than 0.
-- `sun_azimuth`: degrees clockwise from north. A shadow points opposite the sun, so `sun_azimuth = shadow_direction + 180` (mod 360).
-- `year` (optional): year to search. Defaults to the current year.
-- `tolerance` (optional): maximum angular error in degrees. Defaults to 1.
-- `max_results` (optional): maximum number of candidates. Defaults to 10.
-
-Returns the candidates sorted by error, with the date and time in UTC.
-
-### `shadow_to_location`
-
-Given the date and time of a photo and the sun's position, returns the locations where the sun was in that position.
-
-- `date`: UTC date, `YYYY-MM-DD`.
-- `time`: UTC time, `HH:MM` or `HH:MM:SS`.
-- `sun_elevation`: degrees above the horizon, greater than 0.
-- `sun_azimuth`: degrees clockwise from north.
-
-Usually two mirror-image solutions exist; both are returned, each with latitude and longitude.
-
-### `estimate_sun`
+### `relative_sun_position_from_outdoor_lighting`
 
 Estimates the sun's altitude and its azimuth relative to the camera from a single outdoor image, with a DINOv2-small model trained on crops where the sun is outside the frame. It uses the centre square of the image.
 
@@ -73,6 +49,30 @@ Returns:
 The model reads the sun from scene cues (shadows, lighting, sky brightness), so it is an estimate. On the validation set of the training project, the median errors were 1.6° for altitude and 5.6° for azimuth, with a long tail of large azimuth errors.
 
 Requires `torch` and `transformers`, which are not in the default dependencies. Install them in the GeoTrace environment with `pip install torch transformers`. The model weights are in the repository at `models/sun/best.pt`, so the tool needs no external files.
+
+### `time_from_sun_position`
+
+Given a location and the sun's position, returns the dates and times (UTC) when the sun was in that position.
+
+- `latitude`, `longitude`: decimal degrees.
+- `sun_elevation`: degrees above the horizon, greater than 0.
+- `sun_azimuth`: degrees clockwise from north. A shadow points opposite the sun, so `sun_azimuth = shadow_direction + 180` (mod 360).
+- `year` (optional): year to search. Defaults to the current year.
+- `tolerance` (optional): maximum angular error in degrees. Defaults to 1.
+- `max_results` (optional): maximum number of candidates. Defaults to 10.
+
+Returns the candidates sorted by error, with the date and time in UTC.
+
+### `location_from_sun_position`
+
+Given the date and time of a photo and the sun's position, returns the locations where the sun was in that position.
+
+- `date`: UTC date, `YYYY-MM-DD`.
+- `time`: UTC time, `HH:MM` or `HH:MM:SS`.
+- `sun_elevation`: degrees above the horizon, greater than 0.
+- `sun_azimuth`: degrees clockwise from north.
+
+Usually two mirror-image solutions exist; both are returned, each with latitude and longitude.
 
 ## License
 
