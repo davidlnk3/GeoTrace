@@ -8,14 +8,12 @@ from typing import Annotated
 
 
 @mcp.tool(
-    name="shadow_to_location",
-    description="Given the date and time (UTC) of a photo and the sun's position (elevation and azimuth, "
-    "as obtained from shadows detection), returns the probable locations (latitude, longitude) where the sun "
-    "was in that position. Usually two mirror-image solutions exist; both are returned. "
-    "Azimuth is compass degrees clockwise from north; a shadow points opposite the sun, "
-    "so sun azimuth = shadow direction + 180 (mod 360).",
+    name="location_from_sun_position",
+    description="Given the date and time (UTC) of a photo and the sun's position (elevation and azimuth) "
+    "returns the probable locations (latitude, longitude) where the sun "
+    "was in that position. Usually two mirror-image solutions exist; both are returned.",
 )
-async def shadow_to_location(
+async def location_from_sun_position(
     date: Annotated[str, Field(description="Date of the photo in UTC, as YYYY-MM-DD.", pattern=r"^\d{4}-\d{2}-\d{2}$")],
     time: Annotated[str, Field(description="Time of the photo in UTC, as HH:MM or HH:MM:SS.", pattern=r"^\d{2}:\d{2}(:\d{2})?$")],
     sun_elevation: Annotated[float, Field(description="Sun elevation above the horizon in degrees.", gt=0, le=90)],

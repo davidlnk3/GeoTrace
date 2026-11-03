@@ -11,14 +11,16 @@ from typing import Annotated
 from dataclasses import asdict
 
 @mcp.tool(
-    name="detect_shadows",
+    name="relative_sun_position_from_shadows",
     description="Returns the shadows information related to the objects from an image. "
-    "It provides confidence (pair_score), "
-    "shadow direction on the ground, clockwise seen from above from the camera's forward direction (0 = away from the camera, 90 = right), independent of the camera roll (shadow_direction_deg), "
-    "and sun elevation degrees (sun_elevation_deg). "
-    "The camera is calibrated with GeoCalib and returned in 'camera', and the sun elevation is computed from the calibrated camera geometry."
+    "It is precise, but only if confidence in the shadow is high. "
+    "It provides confidence (pair_score), sun relative direction from the camera clockwise "
+    "seen (0 = away from the camera, 90 = right), "
+    "independent of the camera roll (sun_relative_azimuth_to_camera_deg), and sun elevation degrees "
+    "(sun_altitude_deg). The camera is calibrated with GeoCalib and returned in 'camera', "
+    "and the sun elevation is computed from the calibrated camera geometry."
 )
-async def detect_shadows(
+async def relative_sun_position_from_shadows(
     image: Annotated[str, Field(description="URL or path of the image.")],
     ctx: Context
 ) -> dict:

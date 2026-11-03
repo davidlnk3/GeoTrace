@@ -23,7 +23,7 @@ Returns the image so the model can describe its visual clues.
 
 - `image`: URL or local path of the image.
 
-### `detect_shadows`
+### `relative_sun_position_from_shadows`
 
 Detects object-shadow pairs in an image and computes the sun elevation and the shadow direction of each pair. The camera is calibrated with GeoCalib, and the sun elevation is computed from that calibration. Requires the `calibration` extra: `pip install -e ".[calibration]"`.
 
@@ -35,31 +35,7 @@ Returns:
 - `num_pairs`, `pairs`: each pair has `pair_score` (detection confidence), `shadow_direction_deg` (on the ground, clockwise seen from above from the camera's forward direction: 0 = away from the camera, 90 = right) and `sun_elevation_deg`.
 - `skipped`: pairs that could not be computed, with the reason (for example, a base or tip above the horizon).
 
-### `shadow_to_time`
-
-Given a location and the sun's position, returns the dates and times (UTC) when the sun was in that position.
-
-- `latitude`, `longitude`: decimal degrees.
-- `sun_elevation`: degrees above the horizon, greater than 0.
-- `sun_azimuth`: degrees clockwise from north. A shadow points opposite the sun, so `sun_azimuth = shadow_direction + 180` (mod 360).
-- `year` (optional): year to search. Defaults to the current year.
-- `tolerance` (optional): maximum angular error in degrees. Defaults to 1.
-- `max_results` (optional): maximum number of candidates. Defaults to 10.
-
-Returns the candidates sorted by error, with the date and time in UTC.
-
-### `shadow_to_location`
-
-Given the date and time of a photo and the sun's position, returns the locations where the sun was in that position.
-
-- `date`: UTC date, `YYYY-MM-DD`.
-- `time`: UTC time, `HH:MM` or `HH:MM:SS`.
-- `sun_elevation`: degrees above the horizon, greater than 0.
-- `sun_azimuth`: degrees clockwise from north.
-
-Usually two mirror-image solutions exist; both are returned, each with latitude and longitude.
-
-### `estimate_sun`
+### `relative_sun_position_from_outdoor_lighting`
 
 Estimates the sun's altitude and its azimuth relative to the camera from a single outdoor image, with a DINOv2-small model trained on crops where the sun is outside the frame. It uses the centre square of the image.
 
@@ -73,6 +49,30 @@ Returns:
 The model reads the sun from scene cues (shadows, lighting, sky brightness), so it is an estimate. On the validation set of the training project, the median errors were 1.6° for altitude and 5.6° for azimuth, with a long tail of large azimuth errors.
 
 Requires `torch` and `transformers`, which are not in the default dependencies. Install them in the GeoTrace environment with `pip install torch transformers`. The model weights are in the repository at `models/sun/best.pt`, so the tool needs no external files.
+
+### `time_from_sun_position`
+
+Given a location and the sun's position, returns the dates and times (UTC) when the sun was in that position.
+
+- `latitude`, `longitude`: decimal degrees.
+- `sun_elevation`: degrees above the horizon, greater than 0.
+- `sun_azimuth`: degrees clockwise from north. A shadow points opposite the sun, so `sun_azimuth = shadow_direction + 180` (mod 360).
+- `year` (optional): year to search. Defaults to the current year.
+- `tolerance` (optional): maximum angular error in degrees. Defaults to 1.
+- `max_results` (optional): maximum number of candidates. Defaults to 10.
+
+Returns the candidates sorted by error, with the date and time in UTC.
+
+### `location_from_sun_position`
+
+Given the date and time of a photo and the sun's position, returns the locations where the sun was in that position.
+
+- `date`: UTC date, `YYYY-MM-DD`.
+- `time`: UTC time, `HH:MM` or `HH:MM:SS`.
+- `sun_elevation`: degrees above the horizon, greater than 0.
+- `sun_azimuth`: degrees clockwise from north.
+
+Usually two mirror-image solutions exist; both are returned, each with latitude and longitude.
 
 ### `time_from_objects`
 
@@ -100,7 +100,7 @@ GeoTrace is licensed under MIT License. See LICENSE.
 |---|---|---|
 | [SSIS / SSISv2](https://github.com/stevewongv/SSIS) | Object-shadow pair detection, run in a separate Hugging Face Space | **Non-commercial use only** |
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
-| [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) (Zhang et al., CVPR 2019) | Reimplementation of the sun-position part, used by `estimate_sun` | Independent implementation, see below |
+| [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) | Sun-position inference as backup to object-shadow pair detection | Independent implementation, see below |
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
 
 ### SSIS
@@ -118,4 +118,4 @@ official source on first use and are not redistributed with GeoTrace.
 
 ### All-Weather Deep Outdoor Lighting Estimation
 
-`estimate_sun` is a reimplementation of the sun-position part of *All-Weather Deep Outdoor Lighting Estimation* (Zhang et al., CVPR 2019). It is an independent implementation, not the authors' code, and it departs from the paper in several ways: a DINOv2-small backbone, sun labels from astral and the brightest pixel instead of PanoNet estimates, and crops that keep the sun outside the frame.
+Reimplementation of the sun-position part of *All-Weather Deep Outdoor Lighting Estimation* (Zhang et al., CVPR 2019). It is an independent implementation, not the authors' code, and it departs from the paper in several ways: a DINOv2-small backbone, sun labels from astral and the brightest pixel instead of PanoNet estimates, and crops that keep the sun outside the frame.
