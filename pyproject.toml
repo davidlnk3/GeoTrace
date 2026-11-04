@@ -80,3 +80,5 @@ line-length = 120
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+# The Space app runs on Hugging Face with gradio and spaces, which are not project dependencies.
+exclude = ["hf_space", ".venv", "**/__pycache__"]
