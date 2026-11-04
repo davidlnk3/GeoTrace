@@ -19,9 +19,29 @@ Extracts EXIF metadata, camera data and GPS from an image.
 
 ### `view_image`
 
-Returns the image so the model can describe its visual clues.
+Returns the image so the model can describe its visual clues. The image is downscaled so its longest side is at most 1568 px.
 
 - `image`: URL or local path of the image.
+- `grid` (optional): if `true`, overlays a labelled 4×4 grid. Columns are `A`–`D` from left to right and rows are `1`–`4` from top to bottom, so `C2` is the third column and second row. The grid is drawn on a copy of the image and is not part of the evidence. Default `false`.
+
+### `zoom_image`
+
+Returns one region of the image, cropped from the original file at full resolution, so the model can read small details that the downscaled `view_image` copy loses.
+
+- `image`: URL or local path of the image.
+- `cell`: a grid cell from `view_image(grid=True)`, for example `"C2"`.
+- `region`: `[x1, y1, x2, y2]` as fractions (0–1) of the width and height, with `(0, 0)` the top-left corner. Each side must be at least 2% of the image.
+
+Give exactly one of `cell` or `region`. Coordinates refer to the image after its EXIF orientation is applied, which is how `view_image` shows it.
+
+The crop is fitted to a longest side of 1568 px. Larger crops are shrunk, and smaller crops are enlarged by up to 4× with LANCZOS interpolation. An enlarged crop has bigger pixels but no new detail, so text that is still unreadable must be reported as unreadable, not guessed. AI super-resolution is never used, because it invents detail.
+
+Returns the cropped image and a JSON text with `region`, `cell` (if given), `source_pixels` (the `[left, top, right, bottom]` box in the original image), `source_size`, `image_size`, `scale` and `upscaled`.
+
+#### Zoom workflow
+
+1. Call `view_image(image, grid=True)` to see the whole picture with cell labels.
+2. Call `zoom_image(image, cell="C2")` on a cell with something worth reading or checking, such as a sign, a shop front or a licence plate on a building. For an object that crosses cell borders, use `region` with fractions taken from the grid. For example, columns B–C and row 2 give `[0.25, 0.25, 0.75, 0.5]`.
 
 ### `relative_sun_position_from_shadows`
 
