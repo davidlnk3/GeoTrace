@@ -51,8 +51,11 @@ async def view_image(
     grid: Annotated[bool, Field(description="Overlay a labelled grid (A1..D4) to pick regions.")] = False,
 ) -> Image:
     data = await load_image_or_error(image)
-    if grid:
-        jpeg = await asyncio.to_thread(zoom.draw_grid, data)
-    else:
-        jpeg = await asyncio.to_thread(zoom.downscale, data)
+    try:
+        if grid:
+            jpeg = await asyncio.to_thread(zoom.draw_grid, data)
+        else:
+            jpeg = await asyncio.to_thread(zoom.downscale, data)
+    except ValueError as exc:
+        raise ToolError(str(exc)) from exc
     return Image(data=jpeg, format="jpeg")

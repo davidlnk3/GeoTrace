@@ -7,9 +7,9 @@ import io
 import re
 from dataclasses import dataclass
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont
 
-from geotrace.core import images  # noqa: F401  (registers the HEIC opener)
+from geotrace.core import images
 
 MAX_SIDE = 1568            # longest side of any image returned to the model
 MAX_UPSCALE = 4.0          # never enlarge a crop more than this
@@ -39,8 +39,8 @@ class CropInfo:
 
 
 def _open_oriented(data: bytes) -> Image.Image:
-    with Image.open(io.BytesIO(data)) as img:
-        return ImageOps.exif_transpose(img).convert("RGB")
+    # EXIF-oriented RGB; raises ValueError if the bytes are not a decodable image.
+    return images.open_rgb(data)
 
 
 def _to_jpeg(img: Image.Image, quality: int = 90) -> bytes:

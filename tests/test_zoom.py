@@ -136,3 +136,8 @@ def test_resolve_region_validates_region():
         zoom.resolve_region(None, [0.5, 0.5, 0.4, 0.9])
     with pytest.raises(ValueError, match="4 numbers"):
         zoom.resolve_region(None, [0.1, 0.2, 0.3])
+
+
+def test_undecodable_bytes_raise_value_error():
+    with pytest.raises(ValueError, match="Could not decode"):
+        zoom.crop_region(b"not an image", 0, 0, 1, 1)
