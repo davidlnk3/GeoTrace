@@ -133,6 +133,16 @@ async def _post_with_fallback(full_query: str, timeout: int) -> dict:
     raise OverpassError("all Overpass endpoints failed. " + " | ".join(failures))
 
 
+async def run_raw(full_query: str, timeout: int = DEFAULT_TIMEOUT_S) -> dict:
+    """Send a complete Overpass QL query (header and out statement included) with endpoint fallback.
+
+    For callers that build the whole query themselves and have already validated the bbox.
+    """
+    if not 1 <= timeout <= MAX_TIMEOUT_S:
+        raise OverpassError(f"timeout must be between 1 and {MAX_TIMEOUT_S} seconds")
+    return await _post_with_fallback(full_query, timeout)
+
+
 async def run_query(
     query: str,
     south: float,

@@ -1,11 +1,12 @@
 import asyncio
 import io
+from dataclasses import dataclass
+from pathlib import Path
+
 import httpx
-from PIL import Image, ExifTags, ImageFile
+from PIL import ExifTags, Image, ImageOps
 from PIL.TiffImagePlugin import IFDRational
 from pillow_heif import register_heif_opener
-from pathlib import Path
-from dataclasses import dataclass
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".heic", ".webp"}
 MAX_BYTES = 20 * 1024 * 1024  # 20 MB
@@ -43,6 +44,20 @@ def _read_local_file(filepath: str) -> bytes:
     if path.stat().st_size > MAX_BYTES:
         raise ValueError("Image is too large")
     return path.read_bytes()
+
+def open_rgb(data: bytes, max_side: int | None = None) -> Image.Image:
+    """Decode image bytes, apply the EXIF orientation and convert to RGB.
+
+    If max_side is given and the longest side is larger, the image is downscaled to fit.
+    """
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            rgb = ImageOps.exif_transpose(img).convert("RGB")
+    except (OSError, Image.DecompressionBombError) as exc:
+        raise ValueError(f"Could not decode the image: {exc}") from exc
+    if max_side is not None and max(rgb.size) > max_side:
+        rgb.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+    return rgb
 
 def read_metadata(data: bytes) -> dict:
     """Reads the EXIF metadata from bytes and returns it in JSON format"""
