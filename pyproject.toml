@@ -27,17 +27,25 @@ calibration = [
 ocr = [
     "easyocr>=1.7.2",
 ]
+# Face safeguard for reverse_search_region (core/face_guard.py). zoom_image and the grid don't need it.
+# OpenCV 5 dropped CascadeClassifier and the bundled Haar cascades, so stay on 4.x.
+reverse-search = [
+    "opencv-python-headless>=4.8,<5",
+]
 
 [dependency-groups]
 dev = [
     "numpy",  # imported by core/location_regions.py but not in the base dependencies
     "pytest>=8",
+    "pytest-asyncio>=1.0",
     "ruff",
     "pyright",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [project.scripts]
 geotrace = "geotrace.main:main"
@@ -51,3 +59,10 @@ packages = ["src/geotrace"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.ruff]
+line-length = 120
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"

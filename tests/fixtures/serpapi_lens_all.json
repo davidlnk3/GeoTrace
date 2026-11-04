@@ -1,0 +1,279 @@
+{
+  "search_metadata": {
+    "id": "abc",
+    "status": "Success",
+    "created_at": "2026-11-04 18:00:00 UTC"
+  },
+  "search_parameters": {
+    "engine": "google_lens",
+    "image_id": "xokJFnic22FmYZ6S",
+    "type": "all"
+  },
+  "ai_overview": {
+    "page_token": "tok",
+    "serpapi_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=tok"
+  },
+  "visual_matches": [
+    {
+      "position": 1,
+      "title": "Clock tower view 1",
+      "link": "https://example0.org/tower",
+      "source": "Example 0",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:0",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example0.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 2,
+      "title": "Clock tower view 2",
+      "link": "https://example1.org/tower",
+      "source": "Example 1",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:1",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example1.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 3,
+      "title": "Clock tower view 3",
+      "link": "https://example2.org/tower",
+      "source": "Example 2",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:2",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example2.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 4,
+      "title": "Clock tower view 4",
+      "link": "https://example3.org/tower",
+      "source": "Example 3",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:3",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example3.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 5,
+      "title": "Clock tower view 5",
+      "link": "https://example4.org/tower",
+      "source": "Example 4",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:4",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example4.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 6,
+      "title": "Clock tower view 6",
+      "link": "https://example5.org/tower",
+      "source": "Example 5",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:5",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example5.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 7,
+      "title": "Clock tower view 7",
+      "link": "https://example6.org/tower",
+      "source": "Example 6",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:6",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example6.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 8,
+      "title": "Clock tower view 8",
+      "link": "https://example7.org/tower",
+      "source": "Example 7",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:7",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example7.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 9,
+      "title": "Clock tower view 9",
+      "link": "https://example8.org/tower",
+      "source": "Example 8",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:8",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example8.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 10,
+      "title": "Clock tower view 10",
+      "link": "https://example9.org/tower",
+      "source": "Example 9",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:9",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example9.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 11,
+      "title": "Clock tower view 11",
+      "link": "https://example10.org/tower",
+      "source": "Example 10",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:10",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example10.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 12,
+      "title": "Clock tower view 12",
+      "link": "https://example11.org/tower",
+      "source": "Example 11",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:11",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example11.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 13,
+      "title": "Clock tower view 13",
+      "link": "https://example12.org/tower",
+      "source": "Example 12",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:12",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example12.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 14,
+      "title": "Clock tower view 14",
+      "link": "https://example13.org/tower",
+      "source": "Example 13",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:13",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example13.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 15,
+      "title": "Clock tower view 15",
+      "link": "https://example14.org/tower",
+      "source": "Example 14",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:14",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example14.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 16,
+      "title": "Clock tower view 16",
+      "link": "https://example15.org/tower",
+      "source": "Example 15",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:15",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example15.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 17,
+      "title": "Clock tower view 17",
+      "link": "https://example16.org/tower",
+      "source": "Example 16",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:16",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example16.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    },
+    {
+      "position": 18,
+      "title": "Clock tower view 18",
+      "link": "https://example17.org/tower",
+      "source": "Example 17",
+      "source_icon": "https://serpapi.com/images/i/icon.png",
+      "thumbnail": "https://encrypted-tbn2.gstatic.com/images?q=tbn:17",
+      "thumbnail_width": 245,
+      "thumbnail_height": 206,
+      "image": "https://example17.org/tower.jpg",
+      "image_width": 1024,
+      "image_height": 861
+    }
+  ],
+  "related_content": [
+    {
+      "query": "Torre del Reloj",
+      "link": "https://www.google.com/search?q=Torre+del+Reloj",
+      "thumbnail": "https://serpapi.com/searches/x/images/a.jpeg",
+      "serpapi_link": "https://serpapi.com/search.json?engine=google&q=Torre+del+Reloj"
+    },
+    {
+      "query": "Clock tower",
+      "link": "https://www.google.com/search?q=Clock+tower",
+      "thumbnail": "https://serpapi.com/searches/x/images/b.jpeg",
+      "serpapi_link": "https://serpapi.com/search.json?engine=google&q=Clock+tower"
+    }
+  ],
+  "organic_results": [
+    {
+      "position": 1,
+      "title": "Torre del Reloj - Wikipedia",
+      "link": "https://es.wikipedia.org/wiki/Torre_del_Reloj",
+      "redirect_link": "https://lens.google.com/url?x",
+      "displayed_link": "https://es.wikipedia.org > wiki",
+      "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:w",
+      "favicon": "https://serpapi.com/images/i/f.png",
+      "snippet": "La Torre del Reloj es...",
+      "source": "Wikipedia"
+    }
+  ]
+}

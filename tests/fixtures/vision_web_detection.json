@@ -1,0 +1,55 @@
+{
+  "responses": [
+    {
+      "webDetection": {
+        "webEntities": [
+          {
+            "entityId": "/m/0abc",
+            "score": 0.9,
+            "description": "Torre del Reloj"
+          },
+          {
+            "entityId": "/m/0def",
+            "score": 0.5,
+            "description": "Clock tower"
+          }
+        ],
+        "fullMatchingImages": [
+          {
+            "url": "https://upload.wikimedia.org/tower.jpg"
+          }
+        ],
+        "partialMatchingImages": [
+          {
+            "url": "https://example.com/tower-crop.jpg"
+          }
+        ],
+        "pagesWithMatchingImages": [
+          {
+            "url": "https://es.wikipedia.org/wiki/Torre_del_Reloj",
+            "pageTitle": "<b>Torre del Reloj</b> - Wikipedia",
+            "fullMatchingImages": [
+              {
+                "url": "https://upload.wikimedia.org/tower.jpg"
+              }
+            ]
+          }
+        ],
+        "visuallySimilarImages": [
+          {
+            "url": "https://similar.example.net/a.jpg"
+          },
+          {
+            "url": "https://similar.example.net/b.jpg"
+          }
+        ],
+        "bestGuessLabels": [
+          {
+            "label": "torre del reloj",
+            "languageCode": "es"
+          }
+        ]
+      }
+    }
+  ]
+}
