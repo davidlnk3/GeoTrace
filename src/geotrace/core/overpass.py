@@ -5,10 +5,13 @@ import re
 
 import httpx
 
-# Tried in order. The second is used only when the first fails.
+# Tried in order. Each later endpoint is used only when the earlier ones fail.
 ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://ovp.dresel.systems/api/interpreter",
 ]
 USER_AGENT = "GeoTrace/0.1.0"
 
