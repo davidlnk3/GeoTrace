@@ -74,6 +74,23 @@ Given the date and time of a photo and the sun's position, returns the locations
 
 Usually two mirror-image solutions exist; both are returned, each with latitude and longitude.
 
+### `location_guesser_streetclip`
+
+Returns the most probable location of the image with [StreetCLIP](https://huggingface.co/geolocal/StreetCLIP), a CLIP model trained on street-view photos. It is zero-shot: the image is scored against one prompt per candidate place, and the similarities are turned into probabilities with a softmax over the candidates.
+
+- `image`: URL or local path of the image.
+- `candidates` (optional): places to choose from, for example `["Lisbon, Portugal", "Porto, Portugal"]`. Defaults to a built-in list of about 200 countries, each with a representative latitude and longitude.
+- `top_k` (optional): how many candidates to return, 1 to 50. Defaults to 5.
+
+Returns:
+
+- `most_probable`, `top`: each candidate has `location`, `latitude`, `longitude` (null for custom candidates) and `probability`.
+- `candidate_set`: `built-in countries` or `custom`; `num_candidates`.
+
+The probabilities are relative to the candidate set, not calibrated over the world. Treat the result as a first guess and check it against visual clues.
+
+Requires `torch` and `transformers`. The StreetCLIP weights (about 1.7 GB) are downloaded from Hugging Face on first use.
+
 ### `time_from_objects`
 
 Gives the interval in which each named object was built, from its likely build year until today, with EVA02-CLIP time probing as in [arXiv:2510.19559](https://arxiv.org/abs/2510.19559). It helps narrow when the photo can have been taken: it cannot be older than the most recent object in it.
