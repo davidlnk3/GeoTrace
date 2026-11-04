@@ -1,7 +1,8 @@
 from mcp.server.mcpserver import Context
 from geotrace.server import mcp
 from geotrace.core.images import load_image
-from geotrace.core.plonk_location import DEFAULT_SAMPLES, describe_location
+from geotrace.core.location_regions import describe_location
+from geotrace.core.plonk_location import DEFAULT_SAMPLES
 
 import asyncio
 from pydantic import Field
@@ -10,9 +11,8 @@ from typing import Annotated
 
 @mcp.tool(
     name="location_guesser_verne",
-    description="Estimates where an image was probably taken, using PLONK (arXiv:2412.06781, model "
-    "nicolas-dufour/PLONK_YFCC). It draws many candidate locations and returns them as regions. "
-    "Returns: regions, sorted by probability; each with name (nearest place, admin region), "
+    description="Estimates where an image was probably taken. It draws many candidate locations and " \
+    "returns them as regions. Returns: regions, sorted by probability; each with name (nearest place, admin region), "
     "probability, center (latitude, longitude), radius_km and country_code. regions[0] is the most "
     "probable area, and its center is the most probable point. unassigned_probability: the share of "
     "samples outside the returned regions. by_country: each country's share of all samples. "
