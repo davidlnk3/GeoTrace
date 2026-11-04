@@ -41,7 +41,73 @@ Returns the cropped image and a JSON text with `region`, `cell` (if given), `sou
 #### Zoom workflow
 
 1. Call `view_image(image, grid=True)` to see the whole picture with cell labels.
-2. Call `zoom_image(image, cell="C2")` on a cell with something worth reading or checking, such as a sign, a shop front or a licence plate on a building. For an object that crosses cell borders, use `region` with fractions taken from the grid. For example, columns B–C and row 2 give `[0.25, 0.25, 0.75, 0.5]`.
+2. Act on one cell:
+   - `zoom_image(image, cell="C2")` to read or check a detail, such as a sign, a shop front or a building plaque.
+   - `extract_text` on the zoomed area to transcribe the text in it.
+   - `reverse_search_region(image, cell="C2")` to find where a landmark, building, logo or distinctive sign appears online.
+3. For an object that crosses cell borders, use `region` with fractions taken from the grid. For example, columns B–C and row 2 give `[0.25, 0.25, 0.75, 0.5]`.
+
+### `reverse_search_region`
+
+Crops one region of the image and runs a reverse image search on it, to find pages and images showing the same landmark, building, logo or distinctive sign. **It must never be used on people or faces.**
+
+- `image`: URL or local path of the image.
+- `cell` or `region`: as in `zoom_image`. Give exactly one.
+- `backend` (optional): `serpapi` (Google Lens through SerpApi, the default) or `cloud_vision` (Google Cloud Vision Web Detection).
+
+Returns:
+
+- `backend`: the backend that ran the search.
+- `best_guess`: labels or entity names. For SerpApi these are Google Lens's related searches; for Cloud Vision they are the best-guess labels followed by web entities.
+- `pages`: pages where the image or similar ones appear, each with `url`, `title` and `source`.
+- `exact_matches`: URLs of identical images.
+- `visual_matches`: similar images, each with `url`, `title`, `source` and `thumbnail`.
+- `total_results`, `truncated`: each list holds at most 15 items, and `truncated` says whether any were cut.
+- `note`: set when the tool fell back to another backend.
+- `region`, `source_pixels`, `cell`: the region that was searched.
+- `cached`: whether the result came from the cache.
+
+Results are leads to verify, not proof of a location.
+
+Choosing a good crop:
+
+- Include the whole object, with a little context around it.
+- Pick something distinctive, such as a named facade, a unique sign or a logo. A generic lamp post, tree or road gives useless matches.
+- Make sure the region has enough original resolution. It must be at least **200 px per side in the original image**, and smaller regions are refused. Use `zoom_image` first to check.
+
+Safeguards:
+
+- The tool description tells the model never to search people.
+- OpenCV's Haar face detector runs on every crop. The search is refused if one face covers more than 10% of the crop. This is a safeguard, not a guarantee: it misses faces that are small, turned away, hidden or blurred.
+- Results are cached in memory by the SHA-256 of the crop and the backend, so the same crop is never searched (and billed) twice while the server runs.
+
+Requires the `reverse-search` extra, which installs `opencv-python-headless` (4.x) for the face check: `uv sync --extra reverse-search`. `zoom_image` and the grid do not need it.
+
+#### Configuration
+
+Set the keys in the `"env"` block of the GeoTrace entry in `claude_desktop_config.json`, then restart Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "geotrace": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/GeoTrace", "run", "geotrace"],
+      "env": {
+        "SERPAPI_API_KEY": "your-serpapi-key",
+        "GOOGLE_VISION_API_KEY": "your-google-cloud-key"
+      }
+    }
+  }
+}
+```
+
+- **SerpApi (default):** create an account at [serpapi.com](https://serpapi.com) and copy the API key into `SERPAPI_API_KEY`. The crop is uploaded to SerpApi's own image endpoint (`POST https://serpapi.com/image`, at most 500 KB, re-encoded smaller if needed). The search then uses the returned `image_id`, which SerpApi expires after 10 minutes. No other image host is used. SerpApi does not document how long it keeps uploaded images or whether they can be deleted.
+- **Google Cloud Vision (optional):** in a Google Cloud project, enable the Cloud Vision API, turn on billing and create an API key, ideally restricted to the Vision API. Put it in `GOOGLE_VISION_API_KEY`. The crop is sent inline in the request.
+
+You can set either key or both. If `backend="serpapi"` is requested but only `GOOGLE_VISION_API_KEY` is set, the tool uses Cloud Vision and says so in `backend` and `note`. If neither is set, the tool returns an error listing both variables.
+
+> **About SerpApi.** SerpApi is a third-party paid service that scrapes Google results. Each search uses credits from your plan. Google sued SerpApi in December 2025, and the case was still pending at last check. The service could stop working at any time. You decide whether to use it. Google Cloud Vision Web Detection is the official alternative.
 
 ### `relative_sun_position_from_shadows`
 
