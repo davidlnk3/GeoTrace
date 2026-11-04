@@ -2,6 +2,7 @@
 
 import base64
 import io
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -38,13 +39,17 @@ class FakeClient:
         self.calls: list[int] = []
         self.model_tag = model_tag
 
-    def predict(self, images, api_name):
-        assert api_name == "/embed"
-        self.calls.append(len(images))
+    def predict(self, archive, api_name):
+        assert api_name == "/embed_zip"
+        path = archive["path"] if isinstance(archive, dict) else archive
+        with zipfile.ZipFile(path) as zf:
+            names = sorted(zf.namelist())
+            files = [zf.read(n) for n in names]
+        assert names == [f"{i:04d}.jpg" for i in range(len(names))]
+        self.calls.append(len(files))
         vectors = []
-        for f in images:
-            path = f["path"] if isinstance(f, dict) else f
-            with Image.open(path) as im:
+        for data in files:
+            with Image.open(io.BytesIO(data)) as im:
                 pixel = im.convert("RGB").getpixel((5, 5))
             assert isinstance(pixel, tuple)
             r, g = pixel[0], pixel[1]
@@ -125,7 +130,7 @@ async def test_space_backend_failure_is_actionable(tmp_path: Path, thumbs):
     store["a"] = jpeg((200, 0, 0))
 
     class Down:
-        def predict(self, images, api_name):
+        def predict(self, archive, api_name):
             raise ConnectionError("Space is sleeping")
 
     backend = SpaceMegaLoc(

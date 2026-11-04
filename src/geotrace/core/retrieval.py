@@ -329,8 +329,13 @@ class SpaceMegaLoc(_MegaLocBackend):
             return self._client
 
     def _call(self, images: list[bytes]) -> list[Any]:
-        """Send the images in chunks of SPACE_MAX_IMAGES; one descriptor (or None) per image."""
+        """Send the images in chunks of SPACE_MAX_IMAGES; one descriptor (or None) per image.
+
+        Each chunk goes as one uncompressed ZIP to /embed_zip: gradio uploads every file in a
+        separate request, so sending files one by one costs about half a second per image.
+        """
         import tempfile
+        import zipfile
         from pathlib import Path as _Path
 
         from gradio_client import handle_file
@@ -340,13 +345,13 @@ class SpaceMegaLoc(_MegaLocBackend):
         with tempfile.TemporaryDirectory(prefix="geotrace-megaloc-") as tmp:
             for start in range(0, len(images), SPACE_MAX_IMAGES):
                 chunk = images[start:start + SPACE_MAX_IMAGES]
-                paths = []
-                for i, data in enumerate(chunk):
-                    path = _Path(tmp) / f"{start + i}.jpg"
-                    path.write_bytes(data)
-                    paths.append(handle_file(str(path)))
+                archive = _Path(tmp) / f"batch-{start}.zip"
+                # Zero-padded names: the Space reads members in name order.
+                with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as zf:
+                    for i, data in enumerate(chunk):
+                        zf.writestr(f"{i:04d}.jpg", data)
                 try:
-                    payload = client.predict(images=paths, api_name="/embed")
+                    payload = client.predict(archive=handle_file(str(archive)), api_name="/embed_zip")
                 except Exception as exc:  # gradio_client raises many types
                     raise RetrievalError(
                         f"The MegaLoc Space {self.space_id} failed: {exc}. If it is asleep or out of "
