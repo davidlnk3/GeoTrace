@@ -20,7 +20,7 @@ calibration = [
     "geocalib @ git+https://github.com/cvg/GeoCalib.git",
     "torch",
     "torchvision",
-    "opencv-python",
+    "opencv-python-headless",
     "kornia",
 ]
 # OCR for the extract_text tool. EasyOCR pulls in torch, torchvision and opencv-python-headless.
@@ -31,6 +31,18 @@ ocr = [
 # OpenCV 5 dropped CascadeClassifier and the bundled Haar cascades, so stay on 4.x.
 reverse-search = [
     "opencv-python-headless>=4.8,<5",
+]
+# Candidate location verification (core/mapillary.py, core/retrieval.py, core/matching.py).
+# MegaLoc is loaded with torch.hub (it is not on PyPI), so only its runtime dependencies are listed.
+# LightGlue is not on PyPI either, so it is installed from git, pinned to a commit.
+verification = [
+    "lightglue @ git+https://github.com/cvg/LightGlue.git@5a650c444718caffc2669dc0094cde908f42dd73",
+    "torch",
+    "torchvision",
+    "safetensors",
+    "numpy",
+    "opencv-python-headless",
+    "platformdirs",
 ]
 
 [dependency-groups]
@@ -63,6 +75,16 @@ allow-direct-references = true
 [tool.ruff]
 line-length = 120
 
+[tool.uv]
+# One OpenCV for every extra: opencv-python-headless. LightGlue and GeoCalib require opencv-python,
+# and EasyOCR opencv-python-headless; both ship the same cv2 module, so installing both breaks it
+# (removing or upgrading one deletes or mismatches the other's files). GeoTrace never opens a
+# window, so the GUI build is dropped. Only uv applies this; see the README for pip.
+# The lock resolves one version for all extras, so the reverse-search pin keeps everyone on 4.x.
+exclude-dependencies = ["opencv-python"]
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+# The Space app runs on Hugging Face with gradio and spaces, which are not project dependencies.
+exclude = ["hf_space", ".venv", "**/__pycache__"]

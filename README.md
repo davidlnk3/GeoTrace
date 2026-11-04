@@ -254,6 +254,80 @@ It looks in `name`, `name:*` (e.g. `name:en`), `alt_name`, `old_name` and `offic
 2. The model checks the texts against the image and picks the ones that name places: shops, streets, stops, stations, businesses.
 3. `find_named_features` searches each of them in OpenStreetMap inside the candidate area, for example a region from `location_guesser_osv`.
 
+### `verify_candidate_locations`
+
+Checks candidate locations for a street-level photo against nearby [Mapillary](https://www.mapillary.com) photos. For each candidate it searches the Mapillary photos within `radius_m`, ranks them by visual similarity with [MegaLoc](https://github.com/gmberton/MegaLoc), and verifies the most similar ones geometrically with [LightGlue](https://github.com/cvg/LightGlue) (ALIKED features) and RANSAC. The images never pass through the model; everything runs inside the tool.
+
+- `image`: URL or local path of the image.
+- `candidates`: list of `{"latitude": ..., "longitude": ...}` points, **sorted from most to least likely**. At most 50.
+- `radius_m` (optional): search radius around each candidate, from 25 to 500 m. Default 150.
+
+Candidates are processed in order, in batches of 10, and the search stops at the first `"match"`. For each candidate, up to 40 of the nearest Mapillary photos are kept: photos outside the circle, panoramas, and near-duplicates in the same sequence facing the same way are dropped. In each batch, the 20 photos most similar to the query are verified.
+
+Returns:
+
+- `matches`: only `"match"` and `"similar"` results, best first. Each has `candidate_index` (into your list), `reference_id` (the Mapillary image id, viewable at `https://www.mapillary.com/app/?pKey=<id>`), `reference_location` (latitude, longitude), `reference_heading_deg`, `reference_date` (ISO 8601, UTC), `inliers` and `verdict`.
+- `candidates_checked`: how many candidates were processed.
+- `candidates_without_coverage`: indices of candidates with no Mapillary photos nearby. They were **not ruled out**; they just could not be checked.
+- `stopped_early`: `true` if the search stopped at a match.
+
+Verdicts come from the RANSAC inliers of the LightGlue matches: `"match"` (60 or more) means the same place, geometrically verified; `"similar"` (20 to 59) is a weak lead; `"no_match"` is below 20. The thresholds are constants in `core/matching.py` and have not been tuned on a benchmark yet.
+
+Requires a Mapillary token and the `verification` extra (see [Candidate verification setup](#candidate-verification-setup)). The first call downloads the MegaLoc code and weights (via `torch.hub` and Hugging Face) and the ALIKED and LightGlue weights. MegaLoc descriptors of Mapillary photos are cached in SQLite in the user cache directory (for example `~/Library/Caches/geotrace` on macOS or `~/.cache/geotrace` on Linux), so checking a place again is faster. On a CPU, a batch with no cached descriptors can take a minute or more.
+
+### `compare_images`
+
+Checks whether two images show the same place, by geometric verification only (LightGlue matches filtered with RANSAC). It uses the same function and thresholds as `verify_candidate_locations`.
+
+- `image`, `reference`: URL or local path of each image.
+
+Returns `inliers`, `matches` (LightGlue matches before RANSAC) and `verdict` (`"match"`, `"similar"` or `"no_match"`). Requires the `verification` extra, but no Mapillary token.
+
+### Candidate verification setup
+
+1. Install the extra in the GeoTrace directory:
+
+   ```bash
+   uv sync --extra verification
+   ```
+
+   (or `pip install -e ".[verification]"`). It installs PyTorch, torchvision, LightGlue (from its repository), OpenCV, safetensors and platformdirs. Without it, the rest of the server still works, and these two tools explain how to install it.
+
+   All extras use the headless OpenCV build (`opencv-python-headless`), so the `calibration`, `ocr` and `verification` extras can be installed together. uv applies this automatically. pip cannot drop the `opencv-python` that LightGlue and GeoCalib require, and both packages ship the same `cv2` module. After a pip install of `verification` or `calibration`, run:
+
+   ```bash
+   pip uninstall -y opencv-python && pip install --force-reinstall --no-deps opencv-python-headless
+   ```
+
+2. Get a Mapillary token: sign in at [mapillary.com](https://www.mapillary.com), open the [developer dashboard](https://www.mapillary.com/dashboard/developers), register an application (read access is enough) and copy its **client access token** (it starts with `MLY|`).
+
+3. Pass the token to the server in the `"env"` block of `claude_desktop_config.json`:
+
+   ```json
+   {
+     "mcpServers": {
+       "geotrace": {
+         "command": "uv",
+         "args": ["--directory", "/path/to/GeoTrace", "run", "geotrace"],
+         "env": {
+           "MAPILLARY_TOKEN": "MLY|..."
+         }
+       }
+     }
+   }
+   ```
+
+   Restart Claude Desktop afterwards. There is no default token; without one, `verify_candidate_locations` returns an error that explains these steps.
+
+4. Optional: rank on a GPU in a Hugging Face Space instead of on this machine. MegaLoc is the slow step on a CPU, so the ranking can run in the [`davidlnk3/megaloc-descriptors`](https://huggingface.co/spaces/davidlnk3/megaloc-descriptors) Space (ZeroGPU), whose source is in `hf_space/megaloc/`. Add these to the same `"env"` block:
+
+   ```json
+   "GEOTRACE_RETRIEVAL_BACKEND": "space",
+   "HF_TOKEN": "hf_..."
+   ```
+
+   `HF_TOKEN` (a read token from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)) is optional. Without it, the calls use the small anonymous ZeroGPU quota. `GEOTRACE_MEGALOC_SPACE` selects another Space with the same API, for example your own duplicate. The Space receives the query image (re-encoded as a JPEG of at most 1024 px) and the 256 px Mapillary thumbnails whose descriptors are not cached yet. Do not use it for images that must not leave your machine. Both backends pin the same MegaLoc commit and share the local descriptor cache. LightGlue verification always runs locally, so the `verification` extra is still needed.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
@@ -270,6 +344,9 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser_yfcc` | LGPL; data under GeoNames' CC BY 4.0 |
 | [EasyOCR](https://github.com/JaidedAI/EasyOCR) (Jaided AI) | Text detection and recognition for `extract_text` (optional `ocr` extra) | Apache 2.0; models downloaded at first use, not redistributed |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) data via the [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) | `overpass_query` and `find_named_features` | Data © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/) |
+| [Mapillary](https://www.mapillary.com) | Street-level reference photos for `verify_candidate_locations`, fetched at run time through the Mapillary API | Imagery: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); API use under the Mapillary terms |
+| [MegaLoc](https://github.com/gmberton/MegaLoc) (Berton & Masone, CVPRW 2025) | Ranking the Mapillary photos by visual similarity | Code: MIT · Weights ([gberton/MegaLoc](https://huggingface.co/gberton/MegaLoc)): MIT; downloaded at first use, not redistributed. Optionally run in the `davidlnk3/megaloc-descriptors` Space |
+| [LightGlue](https://github.com/cvg/LightGlue) with [ALIKED](https://github.com/Shiaoming/ALIKED) features | Feature matching for the geometric verification in `verify_candidate_locations` and `compare_images` | LightGlue code and weights: Apache 2.0 · ALIKED: BSD 3-Clause · Weights downloaded at first use, not redistributed. SuperPoint, whose licence is non-commercial, is not used |
 
 ### OpenStreetMap
 
@@ -291,3 +368,12 @@ official source on first use and are not redistributed with GeoTrace.
 ### All-Weather Deep Outdoor Lighting Estimation
 
 Reimplementation of the sun-position part of *All-Weather Deep Outdoor Lighting Estimation* (Zhang et al., CVPR 2019). It is an independent implementation, not the authors' code, and it departs from the paper in several ways: a DINOv2-small backbone, sun labels from astral and the brightest pixel instead of PanoNet estimates, and crops that keep the sun outside the frame.
+
+### Mapillary, MegaLoc and LightGlue
+
+`verify_candidate_locations` downloads Mapillary thumbnails at run time and does not store or redistribute them. Only MegaLoc descriptors (numbers, not images) are cached locally, keyed by Mapillary image id. Mapillary imagery is licensed under CC BY-SA 4.0: if you publish a Mapillary photo found by the tool, credit Mapillary and the contributor, and link the image (`https://www.mapillary.com/app/?pKey=<reference_id>`).
+
+MegaLoc is loaded with `torch.hub` from `gmberton/MegaLoc` and LightGlue is installed from `cvg/LightGlue`, both pinned to a commit and used unmodified. LightGlue can also run with DISK features (Apache 2.0, as stated in the LightGlue README), selected in `core/matching.py`.
+
+Berton, G., & Masone, C. (2025). MegaLoc: One Retrieval to Place Them All. CVPR Workshops.
+Lindenberger, P., Sarlin, P.-E., & Pollefeys, M. (2023). LightGlue: Local Feature Matching at Light Speed. ICCV.

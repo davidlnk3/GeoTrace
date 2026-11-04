@@ -2,16 +2,20 @@ import asyncio
 import io
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated
 
 import httpx
 from PIL import ExifTags, Image, ImageOps
 from PIL.TiffImagePlugin import IFDRational
 from pillow_heif import register_heif_opener
+from pydantic import Field
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".heic", ".webp"}
 MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 
 register_heif_opener()
+
+ImageSource = Annotated[str, Field(description="URL or local path of the image.")]
 
 @dataclass
 class ImageMetadata:
