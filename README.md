@@ -313,6 +313,15 @@ Returns `inliers`, `matches` (LightGlue matches before RANSAC) and `verdict` (`"
 
    Restart Claude Desktop afterwards. There is no default token; without one, `verify_candidate_locations` returns an error that explains these steps.
 
+4. Optional: rank on a GPU in a Hugging Face Space instead of on this machine. MegaLoc is the slow step on a CPU, so the ranking can run in the [`davidlnk3/megaloc-descriptors`](https://huggingface.co/spaces/davidlnk3/megaloc-descriptors) Space (ZeroGPU), whose source is in `hf_space/megaloc/`. Add these to the same `"env"` block:
+
+   ```json
+   "GEOTRACE_RETRIEVAL_BACKEND": "space",
+   "HF_TOKEN": "hf_..."
+   ```
+
+   `HF_TOKEN` (a read token from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)) is optional. Without it, the calls use the small anonymous ZeroGPU quota. `GEOTRACE_MEGALOC_SPACE` selects another Space with the same API, for example your own duplicate. The Space receives the query image (re-encoded as a JPEG of at most 1024 px) and the 256 px Mapillary thumbnails whose descriptors are not cached yet. Do not use it for images that must not leave your machine. Both backends pin the same MegaLoc commit and share the local descriptor cache. LightGlue verification always runs locally, so the `verification` extra is still needed.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
@@ -330,7 +339,7 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [EasyOCR](https://github.com/JaidedAI/EasyOCR) (Jaided AI) | Text detection and recognition for `extract_text` (optional `ocr` extra) | Apache 2.0; models downloaded at first use, not redistributed |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) data via the [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) | `overpass_query` and `find_named_features` | Data © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/) |
 | [Mapillary](https://www.mapillary.com) | Street-level reference photos for `verify_candidate_locations`, fetched at run time through the Mapillary API | Imagery: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); API use under the Mapillary terms |
-| [MegaLoc](https://github.com/gmberton/MegaLoc) (Berton & Masone, CVPRW 2025) | Ranking the Mapillary photos by visual similarity | Code: MIT · Weights ([gberton/MegaLoc](https://huggingface.co/gberton/MegaLoc)): MIT; downloaded at first use, not redistributed |
+| [MegaLoc](https://github.com/gmberton/MegaLoc) (Berton & Masone, CVPRW 2025) | Ranking the Mapillary photos by visual similarity | Code: MIT · Weights ([gberton/MegaLoc](https://huggingface.co/gberton/MegaLoc)): MIT; downloaded at first use, not redistributed. Optionally run in the `davidlnk3/megaloc-descriptors` Space |
 | [LightGlue](https://github.com/cvg/LightGlue) with [ALIKED](https://github.com/Shiaoming/ALIKED) features | Feature matching for the geometric verification in `verify_candidate_locations` and `compare_images` | LightGlue code and weights: Apache 2.0 · ALIKED: BSD 3-Clause · Weights downloaded at first use, not redistributed. SuperPoint, whose licence is non-commercial, is not used |
 
 ### OpenStreetMap

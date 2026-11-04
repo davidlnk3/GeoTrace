@@ -6,11 +6,14 @@ cosine similarity between descriptors ranks the references.
 
 `rank_references` is the only entry point the tools use. It delegates to a backend, so the local
 CPU model can later be replaced by a remote one (for example a Hugging Face Space) without
-touching the tools. Only the local backend exists for now.
+touching the tools. Two backends exist: LocalMegaLoc (this machine, default) and SpaceMegaLoc
+(the davidlnk3/megaloc-descriptors Space on ZeroGPU), chosen with GEOTRACE_RETRIEVAL_BACKEND.
+Both pin the same MegaLoc commit and share one embedding cache.
 """
 
 import asyncio
 import logging
+import os
 import sqlite3
 import threading
 from collections.abc import Sequence
@@ -166,8 +169,15 @@ def _embed(images: Sequence[bytes], decode_max_side: int | None = None) -> list[
     return out
 
 
-class LocalMegaLoc:
-    """MegaLoc on the local CPU (or whatever device torch picks by default)."""
+class RetrievalError(ValueError):
+    """Raised when descriptors cannot be computed. The message is safe to show the model."""
+
+
+class _MegaLocBackend:
+    """Ranking shared by every MegaLoc backend: the cache lookup, thumbnail download and scoring.
+
+    Subclasses only compute descriptors, in `_embed`.
+    """
 
     def __init__(self, cache: EmbeddingCache | None = None):
         self._cache = cache
@@ -177,6 +187,10 @@ class LocalMegaLoc:
         if self._cache is None:
             self._cache = EmbeddingCache(default_cache_path())
         return self._cache
+
+    async def _embed(self, query_bytes: bytes, refs: Sequence[bytes]) -> tuple[Any, list[Any]]:
+        """(query descriptor, one descriptor per reference); None where an image cannot be decoded."""
+        raise NotImplementedError
 
     async def rank(
         self, query_bytes: bytes, refs: Sequence[MapillaryImage], top_k: int
@@ -190,19 +204,20 @@ class LocalMegaLoc:
         thumbs = await mapillary.download_thumbnails(missing, 256)
         new_ids = list(thumbs)
 
-        def embed_all() -> tuple[Any, dict[str, Any]]:
-            vectors = _embed([query_bytes], QUERY_DECODE_MAX_SIDE) + _embed([thumbs[i] for i in new_ids])
-            query_vec = vectors[0]
-            fresh = {image_id: v for image_id, v in zip(new_ids, vectors[1:]) if v is not None}
-            if fresh:
-                dim = len(next(iter(fresh.values())))
-                self.cache.put_many({k: v.astype(np.float32).tobytes() for k, v in fresh.items()}, dim)
-            return query_vec, fresh
-
-        query_vec, fresh = await asyncio.to_thread(embed_all)
+        query_vec, new_vecs = await self._embed(query_bytes, [thumbs[i] for i in new_ids])
         if query_vec is None:
-            raise ValueError("The query image could not be decoded.")
+            raise RetrievalError("The query image could not be decoded.")
+        fresh = {
+            image_id: np.asarray(v, dtype=np.float32)
+            for image_id, v in zip(new_ids, new_vecs) if v is not None
+        }
+        if fresh:
+            dim = len(next(iter(fresh.values())))
+            await asyncio.to_thread(
+                self.cache.put_many, {k: v.tobytes() for k, v in fresh.items()}, dim
+            )
 
+        query_vec = np.asarray(query_vec, dtype=np.float32)
         ranked: list[RankedReference] = []
         for ref in refs:
             if ref.id in fresh:
@@ -218,18 +233,166 @@ class LocalMegaLoc:
         return ranked[:top_k]
 
 
+class LocalMegaLoc(_MegaLocBackend):
+    """MegaLoc on the local CPU (or whatever device torch picks by default)."""
+
+    async def _embed(self, query_bytes: bytes, refs: Sequence[bytes]) -> tuple[Any, list[Any]]:
+        def run() -> tuple[Any, list[Any]]:
+            return _embed([query_bytes], QUERY_DECODE_MAX_SIDE)[0], _embed(refs)
+
+        return await asyncio.to_thread(run)
+
+
+# ---------------------------------------------------------------------------- Space MegaLoc
+
+DEFAULT_SPACE_ID = "davidlnk3/megaloc-descriptors"
+SPACE_ENV = "GEOTRACE_MEGALOC_SPACE"
+SPACE_MAX_IMAGES = 256             # per call, enforced by the Space
+SPACE_TIMEOUT_S = 180.0
+QUERY_UPLOAD_QUALITY = 90
+
+
+def _to_jpeg(data: bytes, max_side: int | None) -> bytes | None:
+    """Upright RGB JPEG of the image (EXIF orientation applied, HEIC decoded), or None if unreadable."""
+    import io
+
+    try:
+        rgb = open_rgb(data, max_side)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("skipping undecodable image: %s", exc)
+        return None
+    buf = io.BytesIO()
+    rgb.save(buf, format="JPEG", quality=QUERY_UPLOAD_QUALITY)
+    return buf.getvalue()
+
+
+def _decode_vectors(payload: Any, expected: int) -> list[Any]:
+    """Descriptors from the Space's JSON answer (base64 float16), as float32 numpy arrays."""
+    import base64
+    import json
+
+    import numpy as np
+
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    if not isinstance(payload, dict) or not isinstance(payload.get("vectors"), list):
+        raise RetrievalError("The MegaLoc Space returned an unexpected answer.")
+    if payload.get("model") != MODEL_TAG:
+        raise RetrievalError(
+            f"The MegaLoc Space runs model {payload.get('model')!r}, but GeoTrace expects {MODEL_TAG!r}. "
+            "Update GeoTrace or the Space so both pin the same MegaLoc commit."
+        )
+    vectors = payload["vectors"]
+    if len(vectors) != expected:
+        raise RetrievalError("The MegaLoc Space returned the wrong number of descriptors.")
+    dtype = np.dtype("<f2") if payload.get("dtype") == "float16" else np.dtype("<f4")
+    return [
+        None if v is None else np.frombuffer(base64.b64decode(v), dtype=dtype).astype(np.float32)
+        for v in vectors
+    ]
+
+
+class SpaceMegaLoc(_MegaLocBackend):
+    """MegaLoc on a Hugging Face Space (ZeroGPU), called with gradio_client.
+
+    Only the images whose descriptors are not cached are uploaded: the query, re-encoded as a JPEG
+    of at most QUERY_DECODE_MAX_SIDE px, and the 256 px Mapillary thumbnails. HF_TOKEN, if set, is
+    sent so the calls use the account's ZeroGPU quota instead of the small anonymous one.
+    """
+
+    def __init__(
+        self,
+        space_id: str | None = None,
+        cache: EmbeddingCache | None = None,
+        client_factory: Any = None,
+    ):
+        super().__init__(cache)
+        self.space_id = space_id or os.environ.get(SPACE_ENV, "").strip() or DEFAULT_SPACE_ID
+        self._client_factory = client_factory
+        self._client: Any = None
+        self._client_lock = threading.Lock()
+
+    def _get_client(self) -> Any:
+        with self._client_lock:
+            if self._client is None:
+                if self._client_factory is not None:
+                    self._client = self._client_factory(self.space_id)
+                else:
+                    from gradio_client import Client
+
+                    self._client = Client(
+                        self.space_id,
+                        token=os.environ.get("HF_TOKEN") or None,
+                        verbose=False,
+                        httpx_kwargs={"timeout": SPACE_TIMEOUT_S},
+                    )
+            return self._client
+
+    def _call(self, images: list[bytes]) -> list[Any]:
+        """Send the images in chunks of SPACE_MAX_IMAGES; one descriptor (or None) per image."""
+        import tempfile
+        from pathlib import Path as _Path
+
+        from gradio_client import handle_file
+
+        client = self._get_client()
+        out: list[Any] = []
+        with tempfile.TemporaryDirectory(prefix="geotrace-megaloc-") as tmp:
+            for start in range(0, len(images), SPACE_MAX_IMAGES):
+                chunk = images[start:start + SPACE_MAX_IMAGES]
+                paths = []
+                for i, data in enumerate(chunk):
+                    path = _Path(tmp) / f"{start + i}.jpg"
+                    path.write_bytes(data)
+                    paths.append(handle_file(str(path)))
+                try:
+                    payload = client.predict(images=paths, api_name="/embed")
+                except Exception as exc:  # gradio_client raises many types
+                    raise RetrievalError(
+                        f"The MegaLoc Space {self.space_id} failed: {exc}. If it is asleep or out of "
+                        "ZeroGPU quota, retry in a minute, set HF_TOKEN, or set "
+                        "GEOTRACE_RETRIEVAL_BACKEND=local to run MegaLoc on this machine."
+                    ) from exc
+                out.extend(_decode_vectors(payload, len(chunk)))
+        return out
+
+    async def _embed(self, query_bytes: bytes, refs: Sequence[bytes]) -> tuple[Any, list[Any]]:
+        def run() -> tuple[Any, list[Any]]:
+            query = _to_jpeg(query_bytes, QUERY_DECODE_MAX_SIDE)
+            if query is None:
+                return None, [None] * len(refs)
+            # Thumbnails are already small JPEGs; undecodable ones get None from the Space.
+            vectors = self._call([query, *refs])
+            return vectors[0], vectors[1:]
+
+        return await asyncio.to_thread(run)
+
+
+# ---------------------------------------------------------------------------- selection
+
+BACKEND_ENV = "GEOTRACE_RETRIEVAL_BACKEND"
+BACKENDS = {"local": LocalMegaLoc, "space": SpaceMegaLoc}
+
 _backend: RetrievalBackend | None = None
 
 
 def get_backend() -> RetrievalBackend:
+    """The backend named by GEOTRACE_RETRIEVAL_BACKEND: "local" (default) or "space"."""
     global _backend
     if _backend is None:
-        _backend = LocalMegaLoc()
+        name = os.environ.get(BACKEND_ENV, "local").strip().lower() or "local"
+        if name not in BACKENDS:
+            raise RetrievalError(
+                f"{BACKEND_ENV} must be one of: {', '.join(BACKENDS)} (got {name!r})."
+            )
+        backend: RetrievalBackend = BACKENDS[name]()
+        _backend = backend
+        return backend
     return _backend
 
 
 def set_backend(backend: RetrievalBackend | None) -> None:
-    """Swap the retrieval backend (for a remote one, or for tests). None restores the default."""
+    """Swap the retrieval backend (for tests, or another remote one). None restores the default."""
     global _backend
     _backend = backend
 
