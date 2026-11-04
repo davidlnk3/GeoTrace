@@ -43,7 +43,7 @@ Returns the cropped image and a JSON text with `region`, `cell` (if given), `sou
 1. Call `view_image(image, grid=True)` to see the whole picture with cell labels.
 2. Act on one cell:
    - `zoom_image(image, cell="C2")` to read or check a detail, such as a sign, a shop front or a building plaque.
-   - `extract_text(image)` to transcribe text. For now it reads the whole image and does not take a `cell` or `region`.
+   - `extract_text(image, cell="C2")` to transcribe the text in that cell, read from the full-resolution original.
    - `reverse_search_image(image, cell="C2")` to find where a landmark, building, logo or distinctive sign appears online.
 3. For an object that crosses cell borders, use `region` with fractions taken from the grid. For example, columns B–C and row 2 give `[0.25, 0.25, 0.75, 0.5]`.
 
@@ -224,10 +224,11 @@ Detects and reads text in an image with [EasyOCR](https://github.com/JaidedAI/Ea
 - `image`: URL or local path of the image.
 - `languages` (optional): EasyOCR language codes. The default is common Latin-script languages (`en`, `es`, `fr`, `de`, `it`, `pt`, `nl`). Latin-script languages can be combined freely. Other scripts can only be combined with English, and Arabic, Cyrillic, Devanagari and Bengali also with languages of the same script. Examples: `["ru", "en"]`, `["ar", "en"]`, `["ja", "en"]`, `["ch_sim", "en"]`. An invalid combination is rejected with a message saying which languages to split into separate calls.
 - `min_confidence` (optional): detections below this confidence are dropped. Default 0.3.
+- `cell` or `region` (optional): as in `zoom_image`, to read only one place of the image. Give at most one; omit both to read the whole image. The region is cropped from the full-resolution original before OCR, so small or distant text is often read better than in a whole-image call.
 
-Returns `image_size`, `languages`, `blocks`, `total_blocks` and `truncated`. Each block has `text`, `confidence`, `bbox` (`x1, y1, x2, y2` in pixels) and `relative_size` (block area / image area). Blocks are sorted by `confidence × √relative_size`, so large sign text comes before small print, and at most 50 are returned. Words on the same line (similar height and baseline, small gap) are merged, so `VIA` + `ROMA` becomes `VIA ROMA`.
+Returns `image_size` (of the original image), `languages`, `blocks`, `total_blocks` and `truncated`, plus `region`, `source_pixels` (the `[left, top, right, bottom]` box read) and `cell` when a region was given. Each block has `text`, `confidence`, `bbox` (`x1, y1, x2, y2` in pixels of the original image, also for a region) and `relative_size` (block area / area read, i.e. the image or the region). Blocks are sorted by `confidence × √relative_size`, so large sign text comes before small print, and at most 50 are returned. Words on the same line (similar height and baseline, small gap) are merged, so `VIA` + `ROMA` becomes `VIA ROMA`.
 
-The image is OCR'd at full resolution, downscaled only when its longest side is above 3000 px. Each detected box is also tried rotated by 90°, 180° and 270°. OCR can misread characters (0/O, 1/l, accents), so check the text against the image.
+The image (or region) is OCR'd at full resolution, downscaled only when its longest side is above 3000 px. Each detected box is also tried rotated by 90°, 180° and 270°. OCR can misread characters (0/O, 1/l, accents), so check the text against the image.
 
 Requires the `ocr` extra, which installs EasyOCR and PyTorch:
 

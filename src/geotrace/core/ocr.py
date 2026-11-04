@@ -23,6 +23,7 @@ from typing import Protocol
 
 from PIL import Image
 
+from geotrace.core import zoom
 from geotrace.core.images import open_rgb
 
 # --- Configuration -----------------------------------------------------------------------
@@ -135,17 +136,19 @@ def _model_for(langs: list[str]) -> tuple[str, set[str]]:
 class TextBlock:
     text: str
     confidence: float
-    bbox: tuple[int, int, int, int]  # x1, y1, x2, y2 in image pixels
-    relative_size: float  # block area / image area: bigger text is usually a sign
+    bbox: tuple[int, int, int, int]  # x1, y1, x2, y2 in pixels of the original image
+    relative_size: float  # block area / area read (image or region): bigger text is usually a sign
 
 
 @dataclass
 class OCRResult:
-    image_size: tuple[int, int]
+    image_size: tuple[int, int]  # original image, after EXIF orientation
     languages: list[str]
     blocks: list[TextBlock] = field(default_factory=list)  # best first, at most MAX_BLOCKS
     total_blocks: int = 0
     truncated: bool = False
+    region: tuple[float, float, float, float] | None = None  # fractions 0-1; None = whole image
+    source_pixels: tuple[int, int, int, int] | None = None  # the area read, in original pixels
 
 
 # One raw detection: 4 corner points [x, y], text, confidence.
@@ -297,23 +300,66 @@ def process_detections(
     return merged[:max_blocks], len(merged)
 
 
+def _to_source(block: TextBlock, offset: tuple[int, int], scale: tuple[float, float],
+               limit: tuple[int, int, int, int]) -> TextBlock:
+    """Map a bbox from the (cropped, maybe downscaled) OCR input back to original image pixels."""
+    (ox, oy), (sx, sy) = offset, scale
+    left, top, right, bottom = limit
+    x1, y1, x2, y2 = block.bbox
+    block.bbox = (
+        max(left, min(right, ox + math.floor(x1 * sx))),
+        max(top, min(bottom, oy + math.floor(y1 * sy))),
+        max(left, min(right, ox + math.ceil(x2 * sx))),
+        max(top, min(bottom, oy + math.ceil(y2 * sy))),
+    )
+    return block
+
+
 def read_text(
     image_bytes: bytes,
     languages: Sequence[str] | None = None,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
+    region: Sequence[float] | None = None,
 ) -> OCRResult:
-    """Run OCR on an image. Synchronous and slow: call it from a worker thread."""
+    """Run OCR on an image, or on one region of it. Synchronous and slow: call it from a worker thread.
+
+    region is (x1, y1, x2, y2) as fractions 0-1 of the EXIF-oriented image; None reads it all.
+    The region is cropped from the full-resolution image, so small text keeps its detail, and
+    only then downscaled if its longest side is above MAX_SIDE. Returned bboxes are always in
+    pixels of the original image.
+    """
     if not 0 <= min_confidence <= 1:
         raise OCRError("min_confidence must be between 0 and 1")
     langs = normalize_languages(languages)
-    image = open_rgb(image_bytes, max_side=MAX_SIDE)
+    image = open_rgb(image_bytes)
+    width, height = image.size
+    if region is None:
+        box = (0, 0, width, height)
+        area = image
+    else:
+        x1, y1, x2, y2 = (float(v) for v in region)
+        try:
+            zoom.validate_region(x1, y1, x2, y2)
+        except ValueError as exc:
+            raise OCRError(str(exc)) from exc
+        region = (x1, y1, x2, y2)
+        box = zoom.region_pixels(image.size, region)
+        area = image.crop(box)
+    crop_w, crop_h = area.size
+    if max(area.size) > MAX_SIDE:
+        area.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
+    scale = (crop_w / area.size[0], crop_h / area.size[1])
+
     reader = get_reader(langs)
-    detections = reader.read(image)
-    blocks, total = process_detections(detections, image.size, min_confidence)
+    detections = reader.read(area)
+    blocks, total = process_detections(detections, area.size, min_confidence)
+    blocks = [_to_source(b, (box[0], box[1]), scale, box) for b in blocks]
     return OCRResult(
-        image_size=image.size,
+        image_size=(width, height),
         languages=langs,
         blocks=blocks,
         total_blocks=total,
         truncated=total > len(blocks),
+        region=region,
+        source_pixels=box if region is not None else None,
     )
