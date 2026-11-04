@@ -90,7 +90,8 @@ def _localizability(area_km2):
     return "low"
 
 
-def describe_location(image_bytes: bytes, num_samples: int = DEFAULT_SAMPLES) -> dict:
+def describe_location(image_bytes: bytes, num_samples: int = DEFAULT_SAMPLES,
+                      model_id: str = MODEL_ID) -> dict:
     """Return the regions where the image was probably taken, with their probabilities.
 
     regions are sorted by probability; regions[0] is the most probable area and its centre is
@@ -100,7 +101,7 @@ def describe_location(image_bytes: bytes, num_samples: int = DEFAULT_SAMPLES) ->
     """
     import reverse_geocoder as rg
 
-    lat, lon = sample_coordinates(image_bytes, num_samples)
+    lat, lon = sample_coordinates(image_bytes, num_samples, model_id)
     regions, unassigned = _regions(lat, lon)
 
     # reverse_geocoder prints a loading line to stdout, which would corrupt the MCP stdio protocol.
@@ -124,7 +125,7 @@ def describe_location(image_bytes: bytes, num_samples: int = DEFAULT_SAMPLES) ->
         })
 
     return {
-        "model": MODEL_ID,
+        "model": model_id,
         "num_samples": num_samples,
         "regions": out_regions,
         "unassigned_probability": round(unassigned, 3),

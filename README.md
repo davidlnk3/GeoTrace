@@ -112,6 +112,10 @@ This is an estimate from visual content, not a verified location. The first call
 
 Requires `torch`, `transformers`, `torchvision`, `diff-plonk` and `reverse_geocoder`: `pip install diff-plonk reverse_geocoder`. The `diff-plonk` package pins `scipy==1.13.1`, which does not build on Python 3.15. There, install it with `--no-deps` and add `scipy`, `geoopt`, `torchdiffeq`, `einops` and `accelerate`.
 
+### `location_guesser_inat`
+
+The same as `location_guesser_verne`, but with the `nicolas-dufour/PLONK_iNaturalist` model, trained on iNaturalist. It suits nature photos (plants, animals, landscapes) and is less suited to general street or city photos, which `location_guesser_verne` (YFCC) covers better. It takes the same arguments and returns the same fields, with `model` set to `nicolas-dufour/PLONK_iNaturalist`.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
@@ -124,7 +128,7 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) | Sun-position inference as backup to object-shadow pair detection | Independent implementation, see below |
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
-| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser_verne` | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
+| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser_verne` (YFCC) and `location_guesser_inat` (iNaturalist) | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
 | [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser_verne` | LGPL; data under GeoNames' CC BY 4.0 |
 
 ### SSIS
