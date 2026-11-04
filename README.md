@@ -74,6 +74,22 @@ Given the date and time of a photo and the sun's position, returns the locations
 
 Usually two mirror-image solutions exist; both are returned, each with latitude and longitude.
 
+### `location_guesser_geoclip`
+
+Returns the most probable location of the image, with the GeoCLIP model ([arXiv:2309.16020](https://arxiv.org/abs/2309.16020)). The image is scored against a gallery of 100K GPS coordinates.
+
+- `image`: URL or local path of the image.
+- `top_k` (optional): number of candidates, 1 to 50. Defaults to 5.
+
+Returns:
+
+- `most_probable`: the best candidate, with `rank`, `latitude`, `longitude` and `probability`.
+- `candidates`: the `top_k` candidates, best first, in the same format.
+
+The probabilities rank the candidates; they are not calibrated confidences. The model guesses even when the image has no location clues, so check the scene before trusting the result.
+
+Requires the `geoclip` extra: `pip install -e ".[geoclip]"`. The GeoCLIP weights are in the package. The CLIP ViT-L/14 backbone is downloaded from the Hugging Face Hub on first use.
+
 ### `time_from_objects`
 
 Gives the interval in which each named object was built, from its likely build year until today, with EVA02-CLIP time probing as in [arXiv:2510.19559](https://arxiv.org/abs/2510.19559). It helps narrow when the photo can have been taken: it cannot be older than the most recent object in it.

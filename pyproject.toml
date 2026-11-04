@@ -24,6 +24,16 @@ calibration = [
     "kornia",
 ]
 
+# Location guessing with GeoCLIP (tools/location_guesser_geoclip.py). Pinned to 1.1.0:
+# 1.3.0 requires huggingface-hub<2, which conflicts with the huggingface-hub>=2.4.0 dependency.
+# transformers<5: geoclip 1.1.0 expects CLIP's get_image_features to return a tensor.
+geoclip = [
+    "geoclip==1.1.0",
+    "torch",
+    "torchvision",
+    "transformers>=4.28,<5",
+]
+
 [project.scripts]
 geotrace = "geotrace.main:main"
 
