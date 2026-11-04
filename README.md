@@ -90,6 +90,17 @@ Returns:
 
 Requires `torch`, `transformers` and `open_clip_torch`: `pip install torch open_clip_torch`. The EVA02-CLIP weights (`EVA02-L-14-336`, `merged2b_s6b_b61k`) are downloaded on first use.
 
+### `overpass_query`
+
+Runs an Overpass QL query on the OpenStreetMap Overpass API inside a bounding box. It tries `https://overpass-api.de/api/interpreter` first, then falls back in order to `https://overpass.kumi.systems/api/interpreter`, `https://overpass.private.coffee/api/interpreter`, `https://maps.mail.ru/osm/tools/overpass/api/interpreter` and `https://ovp.dresel.systems/api/interpreter` if an endpoint fails (timeout, connection error, busy server or any other error).
+
+- `query`: Overpass QL statements. Write the body only; the tool adds `[out:json]`, the timeout and `out body;`. Every filter must use the `{{bbox}}` placeholder, for example `node["amenity"="cafe"]({{bbox}});`. Queries without it are rejected, so the box limit always applies.
+- `south`, `west`, `north`, `east`: the box in decimal degrees. It must not cross the antimeridian.
+- `timeout` (optional): server-side timeout in seconds. Default 25, maximum 90.
+- `max_results` (optional): maximum number of elements returned. Default 100, maximum 1000.
+- `rarity` (optional): how common the searched feature is. It sets the largest allowed box: `rare` 2500 km², `medium` 400 km², `common` 100 km² (default), `very_common` 10 km². Larger boxes are rejected.
+
+Returns `bbox_area_km2`, `count_total`, `count_returned`, `truncated` and `elements` (OSM JSON). Overpass runtime errors, such as a server-side timeout, are reported in `remark`.
 ### `location_guesser_yfcc`
 
 Estimates where an image was probably taken, using PLONK ([arXiv:2412.06781](https://arxiv.org/abs/2412.06781)) with the `nicolas-dufour/PLONK_YFCC` model. The model draws many candidate locations and they are summarised as regions.
