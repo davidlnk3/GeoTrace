@@ -30,7 +30,7 @@ async def load_image_or_error(image: str) -> bytes:
 
 
 def region_or_error(cell: str | None, region: list[float] | None) -> tuple[float, float, float, float]:
-    """Shared by zoom_image and reverse_search_region: exactly one of cell or region."""
+    """Shared by zoom_image and reverse_search_image: exactly one of cell or region."""
     try:
         return zoom.resolve_region(cell, region)
     except ValueError as exc:
@@ -42,7 +42,7 @@ def region_or_error(cell: str | None, region: list[float] | None) -> tuple[float
     description="Returns the image so the model can describe its visual clues. "
     f"With grid=True it overlays a labelled {zoom.GRID_COLS}x{zoom.GRID_ROWS} grid "
     f"(columns A-{chr(ord('A') + zoom.GRID_COLS - 1)} left to right, rows 1-{zoom.GRID_ROWS} top to bottom) "
-    "so you can name a cell for zoom_image or reverse_search_region. The grid is drawn on a copy; "
+    "so you can name a cell for zoom_image or reverse_search_image. The grid is drawn on a copy; "
     "it is not part of the evidence.",
 )
 async def view_image(

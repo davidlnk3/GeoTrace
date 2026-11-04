@@ -1,4 +1,4 @@
-"""Tool-layer tests for reverse_search_region. Backends and the face detector are patched,
+"""Tool-layer tests for reverse_search_image. Backends and the face detector are patched,
 so no network request is made. Skipped when numpy is missing (geotrace.tools needs it)."""
 import json
 
@@ -42,7 +42,7 @@ def isolated(monkeypatch):
 
 
 async def call(args: dict) -> dict:
-    result = await mcp.call_tool("reverse_search_region", args)
+    result = await mcp.call_tool("reverse_search_image", args)
     assert isinstance(result, CallToolResult)
     text = result.content[0]
     assert isinstance(text, TextContent)
@@ -93,3 +93,9 @@ async def test_small_region_is_tool_error(image_path, monkeypatch):
     monkeypatch.setenv(rs.SERPAPI_ENV, "k")
     with pytest.raises(ToolError, match="larger region"):
         await call({"image": image_path, "region": [0, 0, 0.05, 0.5]})
+
+
+async def test_full_image_region(image_path, monkeypatch):
+    monkeypatch.setenv(rs.SERPAPI_ENV, "k")
+    out = await call({"image": image_path, "region": [0, 0, 1, 1]})
+    assert out["source_pixels"] == [0, 0, 2000, 1500]

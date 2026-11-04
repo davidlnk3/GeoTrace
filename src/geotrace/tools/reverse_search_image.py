@@ -11,11 +11,11 @@ from geotrace.tools.view_image import CellArg, RegionArg, load_image_or_error, r
 
 
 @mcp.tool(
-    name="reverse_search_region",
-    description="Runs a reverse image search on one region of the image to find where a landmark, building, "
+    name="reverse_search_image",
+    description="Runs a reverse image search on full image or one region of the image to find where a landmark, building, "
     "logo, monument or distinctive sign appears online. Use it ONLY for those; never on people or faces "
     "(crops with a large face are refused). "
-    "Pick the region with cell (from view_image(grid=True), e.g. 'C2') or region ([x1, y1, x2, y2] fractions 0-1); "
+    "Pick the region with cell (from view_image(grid=True), e.g. 'C2') or region ([x1, y1, x2, y2] fractions 0-1 using [0, 0, 1, 1] for the full image); "
     "give exactly one. Choosing a good crop: include the WHOLE object with a little context around it, pick "
     "something distinctive (a named facade, a unique sign, a logo, not a generic lamp post, tree or road), and "
     f"make sure it has enough original resolution (at least {reverse_search.MIN_CROP_PX} px per side in the "
@@ -25,7 +25,7 @@ from geotrace.tools.view_image import CellArg, RegionArg, load_image_or_error, r
     f"(at most {reverse_search.MAX_ITEMS} each), total_results, truncated, the backend used and an optional note. "
     "Results are leads to verify, not proof of location.",
 )
-async def reverse_search_region(
+async def reverse_search_image(
     image: Annotated[str, Field(description="URL or path of the image.")],
     ctx: Context,
     cell: CellArg = None,
@@ -38,7 +38,7 @@ async def reverse_search_region(
     box = region_or_error(cell, region)
     if not face_guard.opencv_available():
         raise ToolError(
-            "reverse_search_region needs OpenCV for its face safeguard. Install the optional extra with "
+            "reverse_search_image needs OpenCV for its face safeguard. Install the optional extra with "
             f"'{face_guard.INSTALL_HINT}' (or pip install 'geotrace[reverse-search]') and restart the server."
         )
     try:

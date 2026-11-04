@@ -44,15 +44,15 @@ Returns the cropped image and a JSON text with `region`, `cell` (if given), `sou
 2. Act on one cell:
    - `zoom_image(image, cell="C2")` to read or check a detail, such as a sign, a shop front or a building plaque.
    - `extract_text(image)` to transcribe text. For now it reads the whole image and does not take a `cell` or `region`.
-   - `reverse_search_region(image, cell="C2")` to find where a landmark, building, logo or distinctive sign appears online.
+   - `reverse_search_image(image, cell="C2")` to find where a landmark, building, logo or distinctive sign appears online.
 3. For an object that crosses cell borders, use `region` with fractions taken from the grid. For example, columns B–C and row 2 give `[0.25, 0.25, 0.75, 0.5]`.
 
-### `reverse_search_region`
+### `reverse_search_image`
 
-Crops one region of the image and runs a reverse image search on it, to find pages and images showing the same landmark, building, logo or distinctive sign. **It must never be used on people or faces.**
+Runs a reverse image search on the whole image or on one region of it, to find pages and images showing the same landmark, building, logo or distinctive sign. **It must never be used on people or faces.**
 
 - `image`: URL or local path of the image.
-- `cell` or `region`: as in `zoom_image`. Give exactly one.
+- `cell` or `region`: as in `zoom_image`. Give exactly one. Use `region=[0, 0, 1, 1]` to search the whole image.
 - `backend` (optional): `serpapi` (Google Lens through SerpApi, the default) or `cloud_vision` (Google Cloud Vision Web Detection).
 
 Returns:
