@@ -32,12 +32,15 @@ ocr = [
 dev = [
     "numpy",  # imported by core/location_regions.py but not in the base dependencies
     "pytest>=8",
+    "pytest-asyncio>=1.0",
     "ruff",
     "pyright",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [project.scripts]
 geotrace = "geotrace.main:main"
@@ -51,3 +54,10 @@ packages = ["src/geotrace"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.ruff]
+line-length = 120
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
