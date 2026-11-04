@@ -98,8 +98,7 @@ Runs an Overpass QL query on the OpenStreetMap Overpass API (`https://overpass-a
 - `south`, `west`, `north`, `east`: the box in decimal degrees. It must not cross the antimeridian.
 - `timeout` (optional): server-side timeout in seconds. Default 25, maximum 90.
 - `max_results` (optional): maximum number of elements returned. Default 100, maximum 1000.
-
-Limits: the box may cover at most 100 km². Larger boxes are rejected.
+- `rarity` (optional): how common the searched feature is. It sets the largest allowed box: `rare` 2500 km², `medium` 400 km², `common` 100 km² (default), `very_common` 10 km². Larger boxes are rejected.
 
 Returns `bbox_area_km2`, `count_total`, `count_returned`, `truncated` and `elements` (OSM JSON). Overpass runtime errors, such as a server-side timeout, are reported in `remark`.
 

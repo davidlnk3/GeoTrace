@@ -3,14 +3,15 @@ from geotrace.server import mcp
 from geotrace.core import overpass
 
 from pydantic import Field
-from typing import Annotated
+from typing import Annotated, Literal
 
 
 @mcp.tool(
     name="overpass_query",
     description="Runs an Overpass QL query on the OpenStreetMap Overpass API inside a bounding box. "
-    "The box must be at most "
-    f"{overpass.MAX_BBOX_KM2:g} km². Write the query body only (no [out:json] header and no out statement); "
+    "The box size limit depends on rarity: rare 2500 km², medium 400 km², common 100 km² (default), "
+    "very_common 10 km². Choose the rarity of the searched feature, not of the photo. "
+    "Write the query body only (no [out:json] header and no out statement); "
     "the tool adds them. Put the placeholder {{bbox}} in every filter, for example "
     "node[\"amenity\"=\"cafe\"]({{bbox}}); The tool rejects queries without it. "
     f"timeout is in seconds (default {overpass.DEFAULT_TIMEOUT_S}, max {overpass.MAX_TIMEOUT_S}). "
@@ -39,11 +40,17 @@ async def overpass_query(
         Field(ge=1, le=overpass.MAX_RESULTS_LIMIT,
               description=f"Maximum number of elements to return. Default {overpass.DEFAULT_MAX_RESULTS}."),
     ] = overpass.DEFAULT_MAX_RESULTS,
+    rarity: Annotated[
+        Literal["rare", "medium", "common", "very_common"],
+        Field(description="How common the searched feature is. Sets the maximum box size: "
+              "rare 2500 km², medium 400 km², common 100 km², very_common 10 km². Default common."),
+    ] = overpass.DEFAULT_RARITY,
 ) -> dict:
     await ctx.info("Querying the Overpass API")
     try:
         result = await overpass.run_query(
-            query, south, west, north, east, timeout=timeout, max_results=max_results
+            query, south, west, north, east,
+            timeout=timeout, max_results=max_results, rarity=rarity,
         )
     except overpass.OverpassError as exc:
         raise ValueError(str(exc)) from exc

@@ -9,7 +9,15 @@ USER_AGENT = "GeoTrace/0.1.0"
 
 BBOX_PLACEHOLDER = "{{bbox}}"
 
-MAX_BBOX_KM2 = 100.0
+# Largest allowed box, by how common the searched feature is.
+# Rare features need a wider box to find any instance; very common ones need only a small one.
+RARITY_MAX_BBOX_KM2 = {
+    "rare": 2500.0,
+    "medium": 400.0,
+    "common": 100.0,
+    "very_common": 10.0,
+}
+DEFAULT_RARITY = "common"
 DEFAULT_TIMEOUT_S = 25
 MAX_TIMEOUT_S = 90
 DEFAULT_MAX_RESULTS = 100
@@ -32,8 +40,8 @@ def bbox_area_km2(south: float, west: float, north: float, east: float) -> float
     )
 
 
-def validate_bbox(south: float, west: float, north: float, east: float) -> float:
-    """Check the box and return its area in km². Raises OverpassError if it is not allowed."""
+def validate_bbox(south: float, west: float, north: float, east: float, max_km2: float) -> float:
+    """Check the box against max_km2 and return its area in km². Raises OverpassError if not allowed."""
     for name, value in (("south", south), ("west", west), ("north", north), ("east", east)):
         if not math.isfinite(value):
             raise OverpassError(f"{name} must be a finite number")
@@ -42,9 +50,10 @@ def validate_bbox(south: float, west: float, north: float, east: float) -> float
     if not -180 <= west < east <= 180:
         raise OverpassError("need -180 <= west < east <= 180 (boxes crossing the antimeridian are not supported)")
     area = bbox_area_km2(south, west, north, east)
-    if area > MAX_BBOX_KM2:
+    if area > max_km2:
         raise OverpassError(
-            f"bounding box is {area:.1f} km², above the maximum of {MAX_BBOX_KM2:g} km². Use a smaller box."
+            f"bounding box is {area:.1f} km², above the maximum of {max_km2:g} km² for this rarity. "
+            "Use a smaller box, or a rarer rarity level if the feature is rare."
         )
     return area
 
@@ -72,15 +81,18 @@ async def run_query(
     east: float,
     timeout: int = DEFAULT_TIMEOUT_S,
     max_results: int = DEFAULT_MAX_RESULTS,
+    rarity: str = DEFAULT_RARITY,
 ) -> dict:
     if not query or not query.strip():
         raise OverpassError("query must not be empty")
+    if rarity not in RARITY_MAX_BBOX_KM2:
+        raise OverpassError(f"rarity must be one of: {', '.join(RARITY_MAX_BBOX_KM2)}")
     if not 1 <= timeout <= MAX_TIMEOUT_S:
         raise OverpassError(f"timeout must be between 1 and {MAX_TIMEOUT_S} seconds")
     if not 1 <= max_results <= MAX_RESULTS_LIMIT:
         raise OverpassError(f"max_results must be between 1 and {MAX_RESULTS_LIMIT}")
 
-    area = validate_bbox(south, west, north, east)
+    area = validate_bbox(south, west, north, east, RARITY_MAX_BBOX_KM2[rarity])
     full_query = build_query(query, south, west, north, east, timeout)
 
     try:
