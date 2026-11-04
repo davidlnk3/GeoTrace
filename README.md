@@ -90,6 +90,23 @@ Returns:
 
 Requires `torch`, `transformers` and `open_clip_torch`: `pip install torch open_clip_torch`. The EVA02-CLIP weights (`EVA02-L-14-336`, `merged2b_s6b_b61k`) are downloaded on first use.
 
+### `location_guesser_verne`
+
+Returns the most probable coordinates of an image, using PLONK ([arXiv:2412.06781](https://arxiv.org/abs/2412.06781)) with the `nicolas-dufour/PLONK_YFCC` model. The model draws several candidate locations from the image and keeps the one with the highest likelihood, as in the paper's ensemble sampling.
+
+- `image`: URL or local path of the image.
+- `num_candidates` (optional): how many candidates to draw, from 1 to 64. Default 16. More candidates cost more time.
+
+Returns:
+
+- `latitude`, `longitude`: decimal degrees.
+- `log_likelihood`: the model's normalised score for that coordinate. Higher is more probable, and it is only comparable between candidates for the same image.
+- `num_candidates`, `model`.
+
+This is a guess from visual content, not a verified location. The first call downloads the model weights and the DINOv2 code, and it is slow on a CPU.
+
+Requires `torch`, `transformers`, `torchvision` and `diff-plonk`: `pip install diff-plonk`. The `diff-plonk` package pins `scipy==1.13.1`, which does not build on Python 3.15. There, install it with `--no-deps` and add `scipy`, `geoopt`, `torchdiffeq`, `einops` and `accelerate`.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
@@ -102,6 +119,7 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) | Sun-position inference as backup to object-shadow pair detection | Independent implementation, see below |
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
+| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Most probable coordinates for `location_guesser_verne` | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
 
 ### SSIS
 

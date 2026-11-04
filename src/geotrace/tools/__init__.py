@@ -1,1 +1,1 @@
-from geotrace.tools import location_from_sun_position, metadata, relative_sun_position_from_outdoor_lighting, relative_sun_position_from_shadows, time_from_objects, time_from_sun_position, view_image
+from geotrace.tools import location_from_sun_position, location_guesser_verne, metadata, relative_sun_position_from_outdoor_lighting, relative_sun_position_from_shadows, time_from_objects, time_from_sun_position, view_image
