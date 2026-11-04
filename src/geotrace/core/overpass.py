@@ -5,7 +5,11 @@ import re
 
 import httpx
 
-ENDPOINT = "https://overpass-api.de/api/interpreter"
+# Tried in order. The second is used only when the first fails.
+ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+]
 USER_AGENT = "GeoTrace/0.1.0"
 
 BBOX_PLACEHOLDER = "{{bbox}}"
@@ -91,6 +95,41 @@ def build_query(query: str, south: float, west: float, north: float, east: float
     return f"[out:json][timeout:{timeout}];\n{body}\nout body;"
 
 
+async def _post(endpoint: str, full_query: str, timeout: int) -> dict:
+    """POST one query to one endpoint and return the parsed JSON. Raises OverpassError on failure."""
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout + HTTP_MARGIN_S),
+            headers={"User-Agent": USER_AGENT},
+        ) as client:
+            response = await client.post(endpoint, data={"data": full_query})
+    except httpx.TimeoutException as exc:
+        raise OverpassError(f"timed out after {timeout} seconds") from exc
+    except httpx.HTTPError as exc:
+        raise OverpassError(f"request failed: {exc}") from exc
+
+    if response.status_code in BUSY_STATUS_CODES:
+        raise OverpassError(f"server busy or overloaded (HTTP {response.status_code})")
+    if response.status_code != 200:
+        raise OverpassError(f"HTTP {response.status_code}: {_error_detail(response.text)}")
+
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise OverpassError("response is not JSON") from exc
+
+
+async def _post_with_fallback(full_query: str, timeout: int) -> dict:
+    """Try each endpoint in order. If all fail, raise one error that lists every failure."""
+    failures = []
+    for endpoint in ENDPOINTS:
+        try:
+            return await _post(endpoint, full_query, timeout)
+        except OverpassError as exc:
+            failures.append(f"{endpoint}: {exc}")
+    raise OverpassError("all Overpass endpoints failed. " + " | ".join(failures))
+
+
 async def run_query(
     query: str,
     south: float,
@@ -113,31 +152,7 @@ async def run_query(
     area = validate_bbox(south, west, north, east, RARITY_MAX_BBOX_KM2[rarity])
     full_query = build_query(query, south, west, north, east, timeout)
 
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout + HTTP_MARGIN_S),
-            headers={"User-Agent": USER_AGENT},
-        ) as client:
-            response = await client.post(ENDPOINT, data={"data": full_query})
-    except httpx.TimeoutException as exc:
-        raise OverpassError(f"Overpass request timed out after {timeout} seconds") from exc
-    except httpx.HTTPError as exc:
-        raise OverpassError(f"Overpass request failed: {exc}") from exc
-
-    if response.status_code in BUSY_STATUS_CODES:
-        raise OverpassError(
-            f"The Overpass server is busy or overloaded (HTTP {response.status_code}). "
-            "Retry later, or use a smaller box or a lower timeout."
-        )
-    if response.status_code != 200:
-        raise OverpassError(
-            f"Overpass returned HTTP {response.status_code}: {_error_detail(response.text)}"
-        )
-
-    try:
-        payload = response.json()
-    except ValueError as exc:
-        raise OverpassError("Overpass returned a response that is not JSON") from exc
+    payload = await _post_with_fallback(full_query, timeout)
 
     elements = payload.get("elements", [])
     total = len(elements)

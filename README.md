@@ -92,7 +92,7 @@ Requires `torch`, `transformers` and `open_clip_torch`: `pip install torch open_
 
 ### `overpass_query`
 
-Runs an Overpass QL query on the OpenStreetMap Overpass API (`https://overpass-api.de`) inside a bounding box.
+Runs an Overpass QL query on the OpenStreetMap Overpass API inside a bounding box. It tries `https://overpass-api.de/api/interpreter` first and falls back to `https://overpass.kumi.systems/api/interpreter` if that fails (timeout, connection error, busy server or any other error).
 
 - `query`: Overpass QL statements. Write the body only; the tool adds `[out:json]`, the timeout and `out body;`. Every filter must use the `{{bbox}}` placeholder, for example `node["amenity"="cafe"]({{bbox}});`. Queries without it are rejected, so the box limit always applies.
 - `south`, `west`, `north`, `east`: the box in decimal degrees. It must not cross the antimeridian.
