@@ -33,8 +33,16 @@ DEFAULT_MIN_CONFIDENCE = 0.3
 MAX_BLOCKS = 50
 # Only larger images are downscaled: small text needs resolution.
 MAX_SIDE = 3000
-# EasyOCR also tries each detected box rotated by these angles and keeps the best reading,
-# which helps with vertical or upside-down text.
+# If the first pass finds nothing, the area is read once more enlarged with LANCZOS (the
+# filter zoom_image uses), up to the size zoom_image shows. Enlarging adds no detail. It is
+# only a fallback: on clean small text (8-18 px tall) a real EasyOCR test read as well or
+# better at native resolution, because the recogniser rescales each text line itself.
+RETRY_TARGET_SIDE = zoom.MAX_SIDE     # enlarge the longest side towards this...
+MIN_RETRY_UPSCALE = 2.0               # ...but at least this much...
+MAX_RETRY_UPSCALE = zoom.MAX_UPSCALE  # ...and at most this much, and never past MAX_SIDE
+# With rotated_text=True, EasyOCR also reads each box rotated by these angles and keeps the
+# most confident reading. Off by default: rotated misreadings (STOP read upside down as
+# 'd01S', a word read sideways as '1') often score higher than the correct upright text.
 ROTATION_INFO = [90, 180, 270]
 
 INSTALL_HINT = (
@@ -149,6 +157,10 @@ class OCRResult:
     truncated: bool = False
     region: tuple[float, float, float, float] | None = None  # fractions 0-1; None = whole image
     source_pixels: tuple[int, int, int, int] | None = None  # the area read, in original pixels
+    scale: float = 1.0  # resize factor of the area read for OCR (>1 enlarged, <1 shrunk)
+    upscaled: bool = False
+    retried: bool = False  # the first pass found nothing and an enlarged copy was read
+    rotated_text: bool = False  # rotated readings (90/180/270) were also tried
 
 
 # One raw detection: 4 corner points [x, y], text, confidence.
@@ -158,7 +170,7 @@ Detection = tuple[Sequence[Sequence[float]], str, float]
 # --- Backends ----------------------------------------------------------------------------
 
 class Backend(Protocol):
-    def read(self, image: Image.Image) -> list[Detection]: ...
+    def read(self, image: Image.Image, rotated: bool = False) -> list[Detection]: ...
 
 
 def is_available() -> bool:
@@ -181,11 +193,12 @@ class EasyOCRBackend:
             except ValueError as exc:
                 raise OCRError(f"EasyOCR rejected languages {languages}: {exc}") from exc
 
-    def read(self, image: Image.Image) -> list[Detection]:
+    def read(self, image: Image.Image, rotated: bool = False) -> list[Detection]:
         import numpy as np
 
         with contextlib.redirect_stdout(sys.stderr):
-            raw = self._reader.readtext(np.asarray(image), detail=1, rotation_info=ROTATION_INFO)
+            raw = self._reader.readtext(np.asarray(image), detail=1,
+                                       rotation_info=ROTATION_INFO if rotated else None)
         return [(box, str(text), float(conf)) for box, text, conf in raw]
 
 
@@ -302,7 +315,7 @@ def process_detections(
 
 def _to_source(block: TextBlock, offset: tuple[int, int], scale: tuple[float, float],
                limit: tuple[int, int, int, int]) -> TextBlock:
-    """Map a bbox from the (cropped, maybe downscaled) OCR input back to original image pixels."""
+    """Map a bbox from the (cropped, resized) OCR input back to original image pixels."""
     (ox, oy), (sx, sy) = offset, scale
     left, top, right, bottom = limit
     x1, y1, x2, y2 = block.bbox
@@ -320,13 +333,15 @@ def read_text(
     languages: Sequence[str] | None = None,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
     region: Sequence[float] | None = None,
+    rotated_text: bool = False,
 ) -> OCRResult:
     """Run OCR on an image, or on one region of it. Synchronous and slow: call it from a worker thread.
 
     region is (x1, y1, x2, y2) as fractions 0-1 of the EXIF-oriented image; None reads it all.
     The region is cropped from the full-resolution image, so small text keeps its detail, and
-    only then downscaled if its longest side is above MAX_SIDE. Returned bboxes are always in
-    pixels of the original image.
+    read at native resolution (shrunk only if its longest side is above MAX_SIDE). If nothing
+    is found, it is read once more enlarged with LANCZOS. rotated_text also tries each box
+    rotated 90/180/270 degrees. Returned bboxes are always in pixels of the original image.
     """
     if not 0 <= min_confidence <= 1:
         raise OCRError("min_confidence must be between 0 and 1")
@@ -345,15 +360,20 @@ def read_text(
         region = (x1, y1, x2, y2)
         box = zoom.region_pixels(image.size, region)
         area = image.crop(box)
-    crop_w, crop_h = area.size
-    if max(area.size) > MAX_SIDE:
-        area.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
-    scale = (crop_w / area.size[0], crop_h / area.size[1])
-
     reader = get_reader(langs)
-    detections = reader.read(area)
-    blocks, total = process_detections(detections, area.size, min_confidence)
-    blocks = [_to_source(b, (box[0], box[1]), scale, box) for b in blocks]
+    longest = max(area.size)
+    scale = min(1.0, MAX_SIDE / longest)
+    blocks, total = _ocr_pass(reader, area, scale, box, min_confidence, rotated_text)
+
+    retried = False
+    retry_scale = min(MAX_RETRY_UPSCALE, max(MIN_RETRY_UPSCALE, RETRY_TARGET_SIDE / longest),
+                      MAX_SIDE / longest)
+    if not blocks and retry_scale > 1.25:
+        retried = True
+        retry_blocks, retry_total = _ocr_pass(reader, area, retry_scale, box, min_confidence, rotated_text)
+        if retry_blocks:
+            blocks, total, scale = retry_blocks, retry_total, retry_scale
+
     return OCRResult(
         image_size=(width, height),
         languages=langs,
@@ -362,4 +382,20 @@ def read_text(
         truncated=total > len(blocks),
         region=region,
         source_pixels=box if region is not None else None,
+        scale=round(scale, 3),
+        upscaled=scale > 1,
+        retried=retried,
+        rotated_text=rotated_text,
     )
+
+
+def _ocr_pass(reader: Backend, area: Image.Image, scale: float, box: tuple[int, int, int, int],
+              min_confidence: float, rotated: bool) -> tuple[list[TextBlock], int]:
+    """Resize area by scale (LANCZOS), OCR it, and map the blocks back to original pixels."""
+    w, h = area.size
+    if scale != 1:
+        area = area.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.Resampling.LANCZOS)
+    detections = reader.read(area, rotated=rotated)
+    blocks, total = process_detections(detections, area.size, min_confidence)
+    back = (w / area.size[0], h / area.size[1])
+    return [_to_source(b, (box[0], box[1]), back, box) for b in blocks], total

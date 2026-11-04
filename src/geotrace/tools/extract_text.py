@@ -22,6 +22,11 @@ from geotrace.tools.view_image import region_or_error
     "view_image(grid=True), e.g. 'C2') or region ([x1, y1, x2, y2] fractions 0-1); give at most one. "
     "The region is cropped from the ORIGINAL full-resolution file, so small or distant text (a street "
     "sign, a house number, a shop front) is often read better than in a whole-image call. "
+    "If nothing is found, the area is read once more enlarged (LANCZOS, no new detail); retried "
+    "and scale in the result say if that happened. Text below about 8 px tall in the original "
+    "is usually not readable at all. "
+    "rotated_text=True also reads each box rotated 90/180/270 degrees: use it only for vertical or "
+    "upside-down text, because rotated misreadings can replace correct upright ones. "
     "Nearby words on the same line are merged, e.g. 'VIA' + 'ROMA' -> 'VIA ROMA'. "
     "OCR can misread characters (0/O, 1/l/I, 5/S, rn/m, dropped or wrong accents), so cross-check "
     "each text against what you see in the image before using it. Names of shops, streets, stops "
@@ -55,6 +60,11 @@ async def extract_text(
               description="Read only [x1, y1, x2, y2] as fractions 0-1 of width and height, with (0, 0) "
               "the top-left. Omit cell and region to read the whole image."),
     ] = None,
+    rotated_text: Annotated[
+        bool,
+        Field(description="Also try each text box rotated 90/180/270 degrees, for vertical or "
+              "upside-down text. Default False: upright text is read more reliably without it."),
+    ] = False,
 ) -> dict:
     if not ocr.is_available():
         raise ToolError(ocr.INSTALL_HINT)
@@ -75,7 +85,7 @@ async def extract_text(
 
     await ctx.info("Reading text in the image" if box is None else "Reading text in the selected region")
     try:
-        result = await asyncio.to_thread(ocr.read_text, data, langs, min_confidence, box)
+        result = await asyncio.to_thread(ocr.read_text, data, langs, min_confidence, box, rotated_text)
     except ValueError as exc:  # OCRError, or an image that cannot be decoded
         raise ToolError(str(exc)) from exc
 
@@ -85,6 +95,12 @@ async def extract_text(
         del out["region"], out["source_pixels"]
     if cell is not None:
         out["cell"] = cell.strip().upper()
+    if result.retried and result.blocks:
+        out["note"] = (
+            "Nothing was found at native resolution; these blocks come from an enlarged copy, so "
+            "the text is near the limit of what the pixels hold and misreadings are likely. "
+            "Check each one with zoom_image before using it."
+        )
     if not result.blocks:
         out["note"] = (
             "No text found above the confidence threshold. Try a lower min_confidence, or other "
