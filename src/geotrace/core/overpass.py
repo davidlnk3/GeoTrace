@@ -2,7 +2,6 @@
 
 import math
 import re
-import time
 
 import httpx
 
@@ -35,11 +34,6 @@ MAX_RESULTS_LIMIT = 1000
 EARTH_RADIUS_KM = 6371.0088
 # Extra seconds on the HTTP client beyond the server-side timeout, for transfer.
 HTTP_MARGIN_S = 10
-# Total time for one call across all endpoints. Kept under the MCP client's 60 s
-# tool-call timeout, so the tool answers (even with an error) before the client gives up.
-TOTAL_BUDGET_S = 50
-# Do not start an endpoint attempt with less time than this left in the budget.
-MIN_ATTEMPT_S = 5
 
 
 class OverpassError(ValueError):
@@ -129,17 +123,11 @@ async def _post(endpoint: str, full_query: str, http_timeout: float) -> dict:
 
 
 async def _post_with_fallback(full_query: str, timeout: int) -> dict:
-    """Try each endpoint in order within TOTAL_BUDGET_S. If all fail, raise one error listing every failure."""
-    deadline = time.monotonic() + TOTAL_BUDGET_S
+    """Try each endpoint in order, each with its own full timeout. If all fail, raise one error listing every failure."""
     failures = []
     for endpoint in ENDPOINTS:
-        remaining = deadline - time.monotonic()
-        if remaining < MIN_ATTEMPT_S:
-            failures.append("out of time budget, remaining endpoints skipped")
-            break
-        http_timeout = min(timeout + HTTP_MARGIN_S, remaining)
         try:
-            return await _post(endpoint, full_query, http_timeout)
+            return await _post(endpoint, full_query, timeout + HTTP_MARGIN_S)
         except OverpassError as exc:
             failures.append(f"{endpoint}: {exc}")
     raise OverpassError("all Overpass endpoints failed. " + " | ".join(failures))
