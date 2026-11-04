@@ -293,6 +293,12 @@ Returns `inliers`, `matches` (LightGlue matches before RANSAC) and `verdict` (`"
 
    (or `pip install -e ".[verification]"`). It installs PyTorch, torchvision, LightGlue (from its repository), OpenCV, safetensors and platformdirs. Without it, the rest of the server still works, and these two tools explain how to install it.
 
+   All extras use the headless OpenCV build (`opencv-python-headless`), so the `calibration`, `ocr` and `verification` extras can be installed together. uv applies this automatically. pip cannot drop the `opencv-python` that LightGlue and GeoCalib require, and both packages ship the same `cv2` module. After a pip install of `verification` or `calibration`, run:
+
+   ```bash
+   pip uninstall -y opencv-python && pip install --force-reinstall --no-deps opencv-python-headless
+   ```
+
 2. Get a Mapillary token: sign in at [mapillary.com](https://www.mapillary.com), open the [developer dashboard](https://www.mapillary.com/dashboard/developers), register an application (read access is enough) and copy its **client access token** (it starts with `MLY|`).
 
 3. Pass the token to the server in the `"env"` block of `claude_desktop_config.json`:
