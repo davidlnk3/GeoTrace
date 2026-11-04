@@ -12,6 +12,7 @@ from typing import Annotated, Literal
     description="Runs an Overpass QL query on the OpenStreetMap Overpass API inside a bounding box. "
     "The box size limit depends on rarity: rare 2500 km², medium 400 km², common 100 km² (default), "
     "very_common 10 km². Choose the rarity of the searched feature, not of the photo. "
+    "Make the query as precise and efficient as possible. "
     "Write the query body only (no [out:json] header and no out statement); "
     "the tool adds them. Put the placeholder {{bbox}} in every filter, for example "
     "node[\"amenity\"=\"cafe\"]({{bbox}}); The tool rejects queries without it. "
