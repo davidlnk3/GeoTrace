@@ -1,0 +1,16 @@
+{
+  "search_metadata": {
+    "status": "Success"
+  },
+  "exact_matches": [
+    {
+      "position": 1,
+      "title": "Torre del Reloj",
+      "source": "Wikipedia",
+      "link": "https://es.wikipedia.org/wiki/Torre_del_Reloj",
+      "thumbnail": "https://serpapi.com/searches/x/images/exact1.jpeg",
+      "actual_image_width": 220,
+      "actual_image_height": 262
+    }
+  ]
+}

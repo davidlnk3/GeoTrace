@@ -27,6 +27,11 @@ calibration = [
 ocr = [
     "easyocr>=1.7.2",
 ]
+# Face safeguard for reverse_search_region (core/face_guard.py). zoom_image and the grid don't need it.
+# OpenCV 5 dropped CascadeClassifier and the bundled Haar cascades, so stay on 4.x.
+reverse-search = [
+    "opencv-python-headless>=4.8,<5",
+]
 
 [dependency-groups]
 dev = [
