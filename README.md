@@ -90,6 +90,19 @@ Returns:
 
 Requires `torch`, `transformers` and `open_clip_torch`: `pip install torch open_clip_torch`. The EVA02-CLIP weights (`EVA02-L-14-336`, `merged2b_s6b_b61k`) are downloaded on first use.
 
+### `overpass_query`
+
+Runs an Overpass QL query on the OpenStreetMap Overpass API (`https://overpass-api.de`) inside a bounding box.
+
+- `query`: Overpass QL statements. Write the body only; the tool adds `[out:json]`, the timeout and `out body;`. Every filter must use the `{{bbox}}` placeholder, for example `node["amenity"="cafe"]({{bbox}});`. Queries without it are rejected, so the box limit always applies.
+- `south`, `west`, `north`, `east`: the box in decimal degrees. It must not cross the antimeridian.
+- `timeout` (optional): server-side timeout in seconds. Default 25, maximum 90.
+- `max_results` (optional): maximum number of elements returned. Default 100, maximum 1000.
+
+Limits: the box may cover at most 100 km². Larger boxes are rejected.
+
+Returns `bbox_area_km2`, `count_total`, `count_returned`, `truncated` and `elements` (OSM JSON). Overpass runtime errors, such as a server-side timeout, are reported in `remark`.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
