@@ -23,6 +23,21 @@ calibration = [
     "opencv-python",
     "kornia",
 ]
+# OCR for the extract_text tool. EasyOCR pulls in torch, torchvision and opencv-python-headless.
+ocr = [
+    "easyocr>=1.7.2",
+]
+
+[dependency-groups]
+dev = [
+    "numpy",  # imported by core/location_regions.py but not in the base dependencies
+    "pytest>=8",
+    "ruff",
+    "pyright",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [project.scripts]
 geotrace = "geotrace.main:main"
