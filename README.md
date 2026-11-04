@@ -131,6 +131,43 @@ The same as `location_guesser_yfcc`, but with the `nicolas-dufour/PLONK_iNatural
 
 The same as `location_guesser_yfcc`, but with the `nicolas-dufour/PLONK_OSV_5M` model, trained on OSV-5M, a street-level dataset. It suits photos of roads, streets, buildings and signs. This model uses a StreetCLIP encoder (`geolocal/StreetCLIP`) instead of DINOv2, so the first call also downloads that encoder. It takes the same arguments and returns the same fields, with `model` set to `nicolas-dufour/PLONK_OSV_5M`.
 
+### `extract_text`
+
+Detects and reads text in an image with [EasyOCR](https://github.com/JaidedAI/EasyOCR): signs, shop names, street names, bus stop names, posters, house numbers.
+
+- `image`: URL or local path of the image.
+- `languages` (optional): EasyOCR language codes. The default is common Latin-script languages (`en`, `es`, `fr`, `de`, `it`, `pt`, `nl`). Latin-script languages can be combined freely. Other scripts can only be combined with English, and Arabic, Cyrillic, Devanagari and Bengali also with languages of the same script. Examples: `["ru", "en"]`, `["ar", "en"]`, `["ja", "en"]`, `["ch_sim", "en"]`. An invalid combination is rejected with a message saying which languages to split into separate calls.
+- `min_confidence` (optional): detections below this confidence are dropped. Default 0.3.
+
+Returns `image_size`, `languages`, `blocks`, `total_blocks` and `truncated`. Each block has `text`, `confidence`, `bbox` (`x1, y1, x2, y2` in pixels) and `relative_size` (block area / image area). Blocks are sorted by `confidence × √relative_size`, so large sign text comes before small print, and at most 50 are returned. Words on the same line (similar height and baseline, small gap) are merged, so `VIA` + `ROMA` becomes `VIA ROMA`.
+
+The image is OCR'd at full resolution, downscaled only when its longest side is above 3000 px. Each detected box is also tried rotated by 90°, 180° and 270°. OCR can misread characters (0/O, 1/l, accents), so check the text against the image.
+
+Requires the `ocr` extra, which installs EasyOCR and PyTorch:
+
+```bash
+uv sync --extra ocr
+# or: pip install -e ".[ocr]"
+```
+
+Without it the server still starts, and `extract_text` returns an error explaining how to install it. The first call for each language set downloads the EasyOCR models (to `~/.EasyOCR/`) and is slow. Later calls reuse the models already in memory.
+
+### `find_named_features`
+
+Searches OpenStreetMap for features (nodes, ways and relations) whose name contains a text, inside a bounding box. It needs no extra dependencies.
+
+- `name`: the text to search, for example a shop name read on a sign. It is matched literally (special characters are escaped), case-insensitively, ignoring accents on common Latin letters and with collapsed whitespace, as part of the name: `Farmacia Roma` finds `Antica Farmacia Roma`.
+- `bbox`: `{"south": …, "west": …, "north": …, "east": …}` in decimal degrees, at most 400 km², not crossing the antimeridian.
+- `tags` (optional): exact tag filters, for example `{"amenity": "pharmacy"}`. Use `"*"` to only require the key.
+
+It looks in `name`, `name:*` (e.g. `name:en`), `alt_name`, `old_name` and `official_name`. It first runs an `out count` query, and then fetches the matches only if there are any. Returns `total_found`, `truncated` and up to 25 `results` nearest to the box centre, each with `name`, `matched_field`, `matched_value`, `osm_type`, `osm_id`, `osm_url`, `lat`, `lon` (the centre for ways and relations), `distance_to_bbox_center_m` and the main tags. If nothing matches, `results` is empty and a `note` suggests a larger box or a shorter part of the name.
+
+### From text in the photo to a place
+
+1. `extract_text` reads the text in the photo.
+2. The model checks the texts against the image and picks the ones that name places: shops, streets, stops, stations, businesses.
+3. `find_named_features` searches each of them in OpenStreetMap inside the candidate area, for example a region from `location_guesser_osv`.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
@@ -145,6 +182,12 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
 | [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser_yfcc` (YFCC), `location_guesser_inat` (iNaturalist) and `location_guesser_osv` (OSV-5M) | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
 | [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser_yfcc` | LGPL; data under GeoNames' CC BY 4.0 |
+| [EasyOCR](https://github.com/JaidedAI/EasyOCR) (Jaided AI) | Text detection and recognition for `extract_text` (optional `ocr` extra) | Apache 2.0; models downloaded at first use, not redistributed |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) data via the [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) | `overpass_query` and `find_named_features` | Data © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/) |
+
+### OpenStreetMap
+
+Map data returned by `overpass_query` and `find_named_features` is © OpenStreetMap contributors and available under the Open Database License (ODbL). See https://www.openstreetmap.org/copyright.
 
 ### SSIS
 
