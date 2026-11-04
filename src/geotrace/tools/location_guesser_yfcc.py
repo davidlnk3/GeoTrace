@@ -10,7 +10,7 @@ from typing import Annotated
 
 
 @mcp.tool(
-    name="location_guesser_verne",
+    name="location_guesser_yfcc",
     description="Estimates where an image was probably taken. It draws many candidate locations and " \
     "returns them as regions. Returns: regions, sorted by probability; each with name (nearest place, admin region), "
     "probability, center (latitude, longitude), radius_km and country_code. regions[0] is the most "
@@ -21,7 +21,7 @@ from typing import Annotated
     "This is an estimate from visual content, not a verified location. The first call downloads the "
     "model and is slow; on a CPU each sample costs about a second.",
 )
-async def location_guesser_verne(
+async def location_guesser_yfcc(
     image: Annotated[str, Field(description="URL or path of the image.")],
     ctx: Context,
     num_samples: Annotated[

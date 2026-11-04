@@ -16,6 +16,7 @@ from PIL import Image, ImageOps
 
 YFCC_MODEL = "nicolas-dufour/PLONK_YFCC"                 # trained on YFCC-100M (general photos)
 INAT_MODEL = "nicolas-dufour/PLONK_iNaturalist"          # trained on iNaturalist (nature photos)
+OSV_MODEL = "nicolas-dufour/PLONK_OSV_5M"                # trained on OSV-5M (street-level), StreetCLIP encoder
 MODEL_ID = YFCC_MODEL                                    # default
 DEFAULT_SAMPLES = 100                                    # samples drawn per image
 
