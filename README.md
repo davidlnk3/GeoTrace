@@ -43,7 +43,7 @@ Returns the cropped image and a JSON text with `region`, `cell` (if given), `sou
 1. Call `view_image(image, grid=True)` to see the whole picture with cell labels.
 2. Act on one cell:
    - `zoom_image(image, cell="C2")` to read or check a detail, such as a sign, a shop front or a building plaque.
-   - `extract_text` on the zoomed area to transcribe the text in it.
+   - `extract_text(image)` to transcribe text. For now it reads the whole image and does not take a `cell` or `region`.
    - `reverse_search_region(image, cell="C2")` to find where a landmark, building, logo or distinctive sign appears online.
 3. For an object that crosses cell borders, use `region` with fractions taken from the grid. For example, columns B–C and row 2 give `[0.25, 0.25, 0.75, 0.5]`.
 
