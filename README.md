@@ -92,20 +92,25 @@ Requires `torch`, `transformers` and `open_clip_torch`: `pip install torch open_
 
 ### `location_guesser_verne`
 
-Returns the most probable coordinates of an image, using PLONK ([arXiv:2412.06781](https://arxiv.org/abs/2412.06781)) with the `nicolas-dufour/PLONK_YFCC` model. The model draws several candidate locations from the image and keeps the one with the highest likelihood, as in the paper's ensemble sampling.
+Estimates where an image was probably taken, using PLONK ([arXiv:2412.06781](https://arxiv.org/abs/2412.06781)) with the `nicolas-dufour/PLONK_YFCC` model. The model draws many candidate locations and they are summarised as regions.
 
 - `image`: URL or local path of the image.
-- `num_candidates` (optional): how many candidates to draw, from 1 to 64. Default 16. More candidates cost more time.
+- `num_samples` (optional): how many candidate locations to draw, from 20 to 500. Default 100. More gives steadier regions but costs more time.
 
 Returns:
 
-- `latitude`, `longitude`: decimal degrees.
-- `log_likelihood`: the model's normalised score for that coordinate. Higher is more probable, and it is only comparable between candidates for the same image.
-- `num_candidates`, `model`.
+- `regions`: sorted by probability. Each has `name` (nearest place and admin region), `probability`, `center` (`latitude`, `longitude`), `radius_km` and `country_code`. `regions[0]` is the most probable area, and its centre is the most probable point.
+- `unassigned_probability`: the share of samples outside the returned regions.
+- `by_country`: each country code's share of all samples.
+- `area_90_km2`: area of the fewest 1° cells that hold 90% of the samples.
+- `localizability`: `high` (up to 10,000 km²), `medium` (up to 500,000 km²) or `low`, from `area_90_km2`.
+- `num_samples`, `model`.
 
-This is a guess from visual content, not a verified location. The first call downloads the model weights and the DINOv2 code, and it is slow on a CPU.
+Regions are formed by greedy clustering: each takes the samples within 100 km of the sample with the most neighbours, and its radius is the 90th percentile of its members' distances from the centre. A region needs at least 5% of the samples. The thresholds and rules are this project's choices, not the paper's.
 
-Requires `torch`, `transformers`, `torchvision` and `diff-plonk`: `pip install diff-plonk`. The `diff-plonk` package pins `scipy==1.13.1`, which does not build on Python 3.15. There, install it with `--no-deps` and add `scipy`, `geoopt`, `torchdiffeq`, `einops` and `accelerate`.
+This is an estimate from visual content, not a verified location. The first call downloads the model weights and the DINOv2 code, and it is slow on a CPU; each sample costs about a second.
+
+Requires `torch`, `transformers`, `torchvision`, `diff-plonk` and `reverse_geocoder`: `pip install diff-plonk reverse_geocoder`. The `diff-plonk` package pins `scipy==1.13.1`, which does not build on Python 3.15. There, install it with `--no-deps` and add `scipy`, `geoopt`, `torchdiffeq`, `einops` and `accelerate`.
 
 ## License
 
@@ -119,7 +124,8 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) | Sun-position inference as backup to object-shadow pair detection | Independent implementation, see below |
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
-| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Most probable coordinates for `location_guesser_verne` | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
+| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser_verne` | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
+| [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser_verne` | LGPL; data under GeoNames' CC BY 4.0 |
 
 ### SSIS
 
