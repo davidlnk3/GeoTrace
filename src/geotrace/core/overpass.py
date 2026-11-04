@@ -1,6 +1,7 @@
 """Overpass API client with bounding-box, timeout and result limits."""
 
 import math
+import re
 
 import httpx
 
@@ -30,6 +31,23 @@ HTTP_MARGIN_S = 10
 
 class OverpassError(ValueError):
     """Raised for invalid input or a failed request. The message is safe to show the model."""
+
+
+BUSY_STATUS_CODES = {429, 502, 503, 504}
+
+
+def _error_detail(body: str, limit: int = 500) -> str:
+    """Pull the readable error out of an Overpass HTML error page.
+
+    Overpass reports query errors (such as a syntax error) inside the HTML page, after a
+    long preamble, so the raw start of the body is not useful.
+    """
+    text = re.sub(r"<[^>]+>", " ", body)
+    text = re.sub(r"\s+", " ", text).strip()
+    idx = text.lower().find("error")
+    if idx < 0:
+        idx = text.lower().find("runtime")
+    return (text[idx:] if idx >= 0 else text)[:limit]
 
 
 def bbox_area_km2(south: float, west: float, north: float, east: float) -> float:
@@ -106,9 +124,15 @@ async def run_query(
     except httpx.HTTPError as exc:
         raise OverpassError(f"Overpass request failed: {exc}") from exc
 
+    if response.status_code in BUSY_STATUS_CODES:
+        raise OverpassError(
+            f"The Overpass server is busy or overloaded (HTTP {response.status_code}). "
+            "Retry later, or use a smaller box or a lower timeout."
+        )
     if response.status_code != 200:
-        detail = response.text.strip()[:500]
-        raise OverpassError(f"Overpass returned HTTP {response.status_code}: {detail}")
+        raise OverpassError(
+            f"Overpass returned HTTP {response.status_code}: {_error_detail(response.text)}"
+        )
 
     try:
         payload = response.json()

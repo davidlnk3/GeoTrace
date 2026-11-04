@@ -1,4 +1,5 @@
 from mcp.server.mcpserver import Context
+from mcp.server.mcpserver.exceptions import ToolError
 from geotrace.server import mcp
 from geotrace.core import overpass
 
@@ -53,6 +54,6 @@ async def overpass_query(
             timeout=timeout, max_results=max_results, rarity=rarity,
         )
     except overpass.OverpassError as exc:
-        raise ValueError(str(exc)) from exc
+        raise ToolError(str(exc)) from exc
     await ctx.info(f"Overpass returned {result['count_total']} elements")
     return result
