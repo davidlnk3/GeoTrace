@@ -32,6 +32,20 @@ ocr = [
 reverse-search = [
     "opencv-python-headless>=4.8,<5",
 ]
+# Candidate location verification (core/mapillary.py, core/retrieval.py, core/matching.py).
+# MegaLoc is loaded with torch.hub (it is not on PyPI), so only its runtime dependencies are listed.
+# LightGlue is not on PyPI either, so it is installed from git, pinned to a commit.
+# LightGlue itself requires opencv-python, so opencv-python-headless is not added: both ship the
+# same cv2 module and installing both breaks it.
+verification = [
+    "lightglue @ git+https://github.com/cvg/LightGlue.git@5a650c444718caffc2669dc0094cde908f42dd73",
+    "torch",
+    "torchvision",
+    "safetensors",
+    "numpy",
+    "opencv-python",
+    "platformdirs",
+]
 
 [dependency-groups]
 dev = [
