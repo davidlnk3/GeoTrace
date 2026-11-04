@@ -90,6 +90,36 @@ Returns:
 
 Requires `torch`, `transformers` and `open_clip_torch`: `pip install torch open_clip_torch`. The EVA02-CLIP weights (`EVA02-L-14-336`, `merged2b_s6b_b61k`) are downloaded on first use.
 
+### `location_guesser_yfcc`
+
+Estimates where an image was probably taken, using PLONK ([arXiv:2412.06781](https://arxiv.org/abs/2412.06781)) with the `nicolas-dufour/PLONK_YFCC` model. The model draws many candidate locations and they are summarised as regions.
+
+- `image`: URL or local path of the image.
+- `num_samples` (optional): how many candidate locations to draw, from 20 to 500. Default 100. More gives steadier regions but costs more time.
+
+Returns:
+
+- `regions`: sorted by probability. Each has `name` (nearest place and admin region), `probability`, `center` (`latitude`, `longitude`), `radius_km` and `country_code`. `regions[0]` is the most probable area, and its centre is the most probable point.
+- `unassigned_probability`: the share of samples outside the returned regions.
+- `by_country`: each country code's share of all samples.
+- `area_90_km2`: area of the fewest 1° cells that hold 90% of the samples.
+- `localizability`: `high` (up to 10,000 km²), `medium` (up to 500,000 km²) or `low`, from `area_90_km2`.
+- `num_samples`, `model`.
+
+Regions are formed by greedy clustering: each takes the samples within 100 km of the sample with the most neighbours, and its radius is the 90th percentile of its members' distances from the centre. A region needs at least 5% of the samples. The thresholds and rules are this project's choices, not the paper's.
+
+This is an estimate from visual content, not a verified location. The first call downloads the model weights and the DINOv2 code, and it is slow on a CPU; each sample costs about a second.
+
+Requires `torch`, `transformers`, `torchvision`, `diff-plonk` and `reverse_geocoder`: `pip install diff-plonk reverse_geocoder`. The `diff-plonk` package pins `scipy==1.13.1`, which does not build on Python 3.15. There, install it with `--no-deps` and add `scipy`, `geoopt`, `torchdiffeq`, `einops` and `accelerate`.
+
+### `location_guesser_inat`
+
+The same as `location_guesser_yfcc`, but with the `nicolas-dufour/PLONK_iNaturalist` model, trained on iNaturalist. It suits nature photos (plants, animals, landscapes) and is less suited to general street or city photos, which `location_guesser_yfcc` (YFCC) covers better. It takes the same arguments and returns the same fields, with `model` set to `nicolas-dufour/PLONK_iNaturalist`.
+
+### `location_guesser_osv`
+
+The same as `location_guesser_yfcc`, but with the `nicolas-dufour/PLONK_OSV_5M` model, trained on OSV-5M, a street-level dataset. It suits photos of roads, streets, buildings and signs. This model uses a StreetCLIP encoder (`geolocal/StreetCLIP`) instead of DINOv2, so the first call also downloads that encoder. It takes the same arguments and returns the same fields, with `model` set to `nicolas-dufour/PLONK_OSV_5M`.
+
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
@@ -102,6 +132,8 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) | Sun-position inference as backup to object-shadow pair detection | Independent implementation, see below |
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
+| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser_yfcc` (YFCC), `location_guesser_inat` (iNaturalist) and `location_guesser_osv` (OSV-5M) | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
+| [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser_yfcc` | LGPL; data under GeoNames' CC BY 4.0 |
 
 ### SSIS
 
