@@ -28,7 +28,7 @@ uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotra
 The base install starts the server and runs every tool that needs no machine-learning model. The other tools need an extra, and until it is installed they return an error with the command to add it. To install extras, put them in brackets after `geotrace` and quote the whole `--from` value:
 
 ```bash
-uvx --python 3.12 --from 'geotrace[ocr,verification] @ git+https://github.com/davidlnk3/GeoTrace@v0.2.0' geotrace
+uvx --python 3.12 --from 'geotrace[all,plonk] @ git+https://github.com/davidlnk3/GeoTrace@v0.2.0' geotrace
 ```
 
 | Extra | Tools | Notes |
@@ -51,13 +51,13 @@ Each snippet uses the base install. For extras, replace the `--from` value with 
 **Claude Code**
 
 ```bash
-claude mcp add geotrace --scope user -e HF_TOKEN=hf_... -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotrace
+claude mcp add geotrace --scope user -e SERPAPI_API_KEY="..." -e MAPILLARY_TOKEN="..." -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotrace
 ```
 
 **Codex**
 
 ```bash
-codex mcp add geotrace --env HF_TOKEN=hf_... -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotrace
+codex mcp add geotrace --env SERPAPI_API_KEY="..." --env MAPILLARY_TOKEN="..." -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotrace
 ```
 
 or in `~/.codex/config.toml`:
@@ -67,7 +67,7 @@ or in `~/.codex/config.toml`:
 command = "uvx"
 args = ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"]
 startup_timeout_sec = 60
-env = { HF_TOKEN = "hf_..." }
+env = { SERPAPI_API_KEY="...",  MAPILLARY_TOKEN="..." }
 ```
 
 **Claude Desktop, Cursor and other `mcpServers` clients** (`claude_desktop_config.json`, `~/.cursor/mcp.json`, ...):
@@ -78,7 +78,7 @@ env = { HF_TOKEN = "hf_..." }
     "geotrace": {
       "command": "uvx",
       "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"],
-      "env": { "HF_TOKEN": "hf_..." }
+      "env": { SERPAPI_API_KEY:"...",  MAPILLARY_TOKEN:"..." }
     }
   }
 }
@@ -95,7 +95,7 @@ Desktop apps on macOS may not see your shell's `PATH`. If the server fails to st
       "geotrace": {
         "command": "uvx",
         "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"],
-        "env": { "HF_TOKEN": "hf_..." }
+        "env": { SERPAPI_API_KEY:"...",  MAPILLARY_TOKEN:"..." }
       }
     }
   }
@@ -110,7 +110,8 @@ mcp_servers:
     command: uvx
     args: ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"]
     env:
-      HF_TOKEN: hf_...
+      SERPAPI_API_KEY:"..."
+      MAPILLARY_TOKEN:"..."
 ```
 
 ### Environment variables
