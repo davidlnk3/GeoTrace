@@ -31,7 +31,7 @@ class FakeBackend:
     def __init__(self, languages):
         self.languages = languages
 
-    def read(self, image):
+    def read(self, image, rotated=False):
         return [
             ([[100, 100], [220, 100], [220, 140], [100, 140]], "VIA", 0.95),
             ([[240, 100], [400, 100], [400, 140], [240, 140]], "ROMA", 0.85),
@@ -63,6 +63,40 @@ def test_extract_text(ocr_mocked):
     ctx2 = FakeContext()
     asyncio.run(extract_text(image="photo.jpg", ctx=ctx2))  # type: ignore[arg-type]
     assert not any("download" in m for m in ctx2.messages)
+
+
+def test_extract_text_full_image_has_no_region_fields(ocr_mocked):
+    result = asyncio.run(extract_text(image="photo.jpg", ctx=FakeContext()))  # type: ignore[arg-type]
+    assert "region" not in result and "source_pixels" not in result and "cell" not in result
+
+
+def test_extract_text_cell(ocr_mocked):
+    # A1 of the 4x4 grid on 800x600 is the top-left 200x150 box: VIA (100-220) is cut at 200.
+    result = asyncio.run(extract_text(image="photo.jpg", ctx=FakeContext(), cell=" a1 "))  # type: ignore[arg-type]
+    assert result["cell"] == "A1"
+    assert result["region"] == (0.0, 0.0, 0.25, 0.25)
+    assert result["source_pixels"] == (0, 0, 200, 150)
+    assert result["image_size"] == (800, 600)
+    assert all(0 <= b["bbox"][2] <= 200 and b["bbox"][3] <= 150 for b in result["blocks"])
+
+
+def test_extract_text_region_offsets_bbox(ocr_mocked):
+    result = asyncio.run(extract_text(image="photo.jpg", ctx=FakeContext(), region=[0.5, 0.5, 1, 1]))  # type: ignore[arg-type]
+    assert result["source_pixels"] == (400, 300, 800, 600)
+    # The fake backend returns the same boxes for any input, so they land offset by (400, 300).
+    assert result["blocks"][0]["bbox"] == (500, 400, 800, 440)
+    assert result["scale"] == 1.0 and result["retried"] is False and result["rotated_text"] is False
+
+
+def test_extract_text_cell_and_region_rejected(ocr_mocked):
+    with pytest.raises(ToolError, match="exactly one"):
+        asyncio.run(extract_text(image="x.jpg", ctx=FakeContext(), cell="A1", region=[0, 0, 1, 1]))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("kwargs", [{"cell": "Z9"}, {"region": [0.8, 0, 0.2, 1]}])
+def test_extract_text_bad_cell_or_region(ocr_mocked, kwargs):
+    with pytest.raises(ToolError):
+        asyncio.run(extract_text(image="x.jpg", ctx=FakeContext(), **kwargs))  # type: ignore[arg-type]
 
 
 def test_extract_text_empty_has_note(ocr_mocked):
@@ -125,3 +159,18 @@ def test_find_named_features_errors_become_tool_errors(monkeypatch):
     with pytest.raises(ToolError, match="at least"):
         asyncio.run(find_named_features(name="R", bbox=BOX, ctx=FakeContext()))  # type: ignore[arg-type]
 
+
+
+def test_extract_text_retry_adds_warning_note(ocr_mocked, monkeypatch):
+    calls = []
+
+    class EmptyFirst(FakeBackend):
+        def read(self, image, rotated=False):
+            calls.append(image.size)
+            return [] if len(calls) == 1 else super().read(image, rotated)
+
+    monkeypatch.setattr(ocr, "_backend_factory", EmptyFirst)
+    result = asyncio.run(extract_text(image="x.jpg", ctx=FakeContext(), cell="B2"))  # type: ignore[arg-type]
+    assert calls == [(200, 150), (800, 600)]  # native cell, then x4
+    assert result["retried"] is True and result["blocks"]
+    assert "zoom_image" in result["note"]

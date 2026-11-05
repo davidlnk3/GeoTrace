@@ -22,9 +22,11 @@ class FakeBackend:
         self.languages = languages
         self.detections = list(detections)
         self.seen_size = None
+        self.rotated = None
 
-    def read(self, image):
+    def read(self, image, rotated=False):
         self.seen_size = image.size
+        self.rotated = rotated
         return self.detections
 
 
@@ -201,7 +203,105 @@ def test_read_text_downscales_only_large_images(monkeypatch):
     assert backend.seen_size == (2500, 1000)
     result = ocr.read_text(png(6000, 3000))
     assert backend.seen_size == (3000, 1500)
-    assert result.image_size == (3000, 1500)
+    assert result.image_size == (6000, 3000)
+
+
+def test_read_text_bbox_scaled_back_to_original_pixels(monkeypatch):
+    backend = FakeBackend([], [(quad(100, 200, 300, 250), "SIGN", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    result = ocr.read_text(png(6000, 3000))
+    assert result.blocks[0].bbox == (200, 400, 600, 500)
+    assert result.region is None and result.source_pixels is None
+
+
+def test_read_text_region_crops_at_full_resolution(monkeypatch):
+    backend = FakeBackend([], [(quad(10, 20, 110, 60), "VIA ROMA", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    result = ocr.read_text(png(1000, 500), region=[0.5, 0.5, 1.0, 1.0])
+    assert backend.seen_size == (500, 250)  # only the crop is read, at native resolution
+    assert result.image_size == (1000, 500)
+    assert result.region == (0.5, 0.5, 1.0, 1.0)
+    assert result.source_pixels == (500, 250, 1000, 500)
+    assert result.scale == 1.0 and result.upscaled is False and result.retried is False
+    block = result.blocks[0]
+    assert block.bbox == (510, 270, 610, 310)  # offset into original pixels
+    assert block.relative_size == pytest.approx(100 * 40 / (500 * 250))  # share of the crop
+
+
+def test_read_text_large_region_is_downscaled_and_mapped_back(monkeypatch):
+    backend = FakeBackend([], [(quad(100, 100, 200, 150), "X", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    # Region 0.25-1 of a 8000x4000 image is 6000x3000, downscaled to 3000x1500.
+    result = ocr.read_text(png(8000, 4000), region=[0.25, 0.25, 1.0, 1.0])
+    assert backend.seen_size == (3000, 1500)
+    assert result.source_pixels == (2000, 1000, 8000, 4000)
+    assert result.blocks[0].bbox == (2200, 1200, 2400, 1300)
+
+
+def test_read_text_rotation_is_opt_in(monkeypatch):
+    backend = FakeBackend([], [(quad(0, 0, 40, 40), "7", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    assert ocr.read_text(png()).rotated_text is False
+    assert backend.rotated is False
+    assert ocr.read_text(png(), rotated_text=True).rotated_text is True
+    assert backend.rotated is True
+
+
+class EmptyFirstBackend(FakeBackend):
+    """Finds nothing on the first read, then returns its detections."""
+
+    def __init__(self, languages, detections=()):
+        super().__init__(languages, detections)
+        self.sizes = []
+
+    def read(self, image, rotated=False):
+        self.sizes.append(image.size)
+        return [] if len(self.sizes) == 1 else self.detections
+
+
+def test_read_text_retries_enlarged_when_nothing_found(monkeypatch):
+    backend = EmptyFirstBackend([], [(quad(40, 40, 80, 60), "12", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    result = ocr.read_text(png(1000, 500), region=[0.0, 0.0, 0.1, 0.1])  # 100x50
+    assert backend.sizes == [(100, 50), (400, 200)]  # native, then x4 (the cap)
+    assert result.retried is True and result.upscaled is True and result.scale == 4.0
+    assert result.blocks[0].bbox == (10, 10, 20, 15)
+
+
+def test_read_text_retry_scale(monkeypatch):
+    backend = EmptyFirstBackend([], [(quad(0, 0, 40, 40), "7", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    ocr.read_text(png(1000, 500))  # towards 1568 px, but at least x2
+    assert backend.sizes[1] == (2000, 1000)
+    backend.sizes.clear()
+    ocr.read_text(png(2000, 1000))  # x2 would pass MAX_SIDE: capped at 3000 (x1.5)
+    assert backend.sizes[1] == (3000, 1500)
+
+
+def test_read_text_retry_keeps_empty_result(monkeypatch):
+    backend = FakeBackend([], [])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    result = ocr.read_text(png(1000, 500), region=[0.0, 0.0, 0.1, 0.1])
+    assert result.retried is True and result.blocks == [] and result.scale == 1.0
+
+
+def test_read_text_no_retry_when_text_found_or_no_room(monkeypatch):
+    backend = EmptyFirstBackend([], [(quad(0, 0, 40, 40), "7", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    assert ocr.read_text(png(4000, 2000)).retried is False  # above MAX_SIDE: no room to enlarge
+    assert len(backend.sizes) == 1
+
+    backend = FakeBackend([], [(quad(0, 0, 40, 40), "7", 0.9)])
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: backend)
+    monkeypatch.setattr(ocr, "_readers", {})
+    assert ocr.read_text(png(1000, 500), region=[0, 0, 0.1, 0.1]).retried is False
+
+
+@pytest.mark.parametrize("region", [[0.5, 0.5, 0.4, 1.0], [0, 0, 1.5, 1], [0, 0, 0.01, 1]])
+def test_read_text_invalid_region(monkeypatch, region):
+    monkeypatch.setattr(ocr, "_backend_factory", lambda langs: FakeBackend(langs))
+    with pytest.raises(OCRError):
+        ocr.read_text(png(), region=region)
 
 
 def test_read_text_rejects_bad_image(monkeypatch):
