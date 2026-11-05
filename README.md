@@ -9,6 +9,8 @@
 **Get the position and the time of any picture**
 </div>
 
+GeoTrace allows you to find the where and the when an image was taken. The main purpose of this work is educational and, in case it can, to help journalists and OSINT experts in the research of criminal activity and similar. My interest in OSINT started with Sofia Santos and bellingcat challenges, whose I share their vision of revealing human rights violations all around the world in order to concern people and authorities about them. Therefore, this project aims to provide a tool to people wanting to collaborate in this tasks.
+
 ## Tools
 
 ### `extract_metadata`
