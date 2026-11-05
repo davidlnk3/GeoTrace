@@ -38,8 +38,7 @@ async def reverse_search_image(
     box = region_or_error(cell, region)
     if not face_guard.opencv_available():
         raise ToolError(
-            "reverse_search_image needs OpenCV for its face safeguard. Install the optional extra with "
-            f"'{face_guard.INSTALL_HINT}' (or pip install 'geotrace[reverse-search]') and restart the server."
+            f"reverse_search_image needs OpenCV for its face safeguard. {face_guard.INSTALL_HINT}"
         )
     try:
         engine, note = reverse_search.select_backend(backend, os.environ)

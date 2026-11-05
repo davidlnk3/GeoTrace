@@ -1,0 +1,62 @@
+# Checks GeoTrace the way users install it: as a package with uvx, outside the project, so
+# pyproject's [tool.uv] settings and uv.lock don't apply. On a tag it uses the exact command
+# published in the README; otherwise it installs this checkout.
+name: Install check
+
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  base:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Choose the install source
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "SPEC=git+https://github.com/${{ github.repository }}@${{ github.ref_name }}" >> "$GITHUB_ENV"
+          else
+            echo "SPEC=geotrace @ file://$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          fi
+      - name: Start the server and list its tools
+        run: uv run --no-project --with mcp python scripts/check_install.py uvx --python 3.12 --from "$SPEC" geotrace
+
+  extras:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Free disk space for PyTorch
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+      - name: Choose the install source
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "SPEC=geotrace[all,plonk] @ git+https://github.com/${{ github.repository }}@${{ github.ref_name }}" >> "$GITHUB_ENV"
+          else
+            echo "SPEC=geotrace[all,plonk] @ file://$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          fi
+      - name: Start the server and list its tools
+        run: uv run --no-project --with mcp python scripts/check_install.py uvx --python 3.12 --from "$SPEC" geotrace
+      - name: Import every optional dependency
+        # One OpenCV build only: with both opencv-python and opencv-python-headless installed, one
+        # overwrites the other's cv2 files. CascadeClassifier is what the face check needs (4.x only).
+        run: |
+          uv run --no-project --python 3.12 --with "$SPEC" python - <<'EOF'
+          import importlib.metadata as md
+          installed = {d.metadata["Name"].lower() for d in md.distributions()}
+          opencv = sorted(name for name in installed if name.startswith("opencv-"))
+          assert opencv == ["opencv-python-headless"], f"expected only opencv-python-headless, got {opencv}"
+          import cv2, easyocr, geocalib, lightglue, open_clip, plonk, reverse_geocoder, transformers
+          assert hasattr(cv2, "CascadeClassifier"), f"cv2 {cv2.__version__} has no CascadeClassifier"
+          print("cv2", cv2.__version__)
+          EOF
