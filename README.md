@@ -115,6 +115,7 @@ https://github.com/stevewongv/SSIS, which is licensed for non-commercial use onl
 It runs in a separate Hugging Face Space (davidlnk3/ssis-demo) that keeps the
 original license and includes modifications described there.
 For commercial use of SSIS, contact its authors.
+The Space is public and is called anonymously by default. Set `HF_TOKEN` (optional) to use your account's ZeroGPU quota instead of the small anonymous one.
 
 ### GeoCalib
 

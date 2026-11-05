@@ -1,13 +1,18 @@
 # geotrace/core/ssis.py
 import asyncio
+import os
 
 from gradio_client import Client, handle_file
-from huggingface_hub import get_token
 
 DEFAULT_SPACE = "davidlnk3/ssis-demo"
 
 
 class SSISClient:
+    """SSIS detection on a Hugging Face Space, called anonymously unless a token is given.
+
+    HF_TOKEN, if set, is sent so the calls use the account's ZeroGPU quota instead of the small
+    anonymous one. Same rule as the MegaLoc Space backend in core/retrieval.py.
+    """
 
     def __init__(self, space_id: str = DEFAULT_SPACE, token: str | None = None):
         self._space_id = space_id
@@ -16,13 +21,8 @@ class SSISClient:
 
     def _connect(self) -> Client:
         if self._client is None:
-            token = self._token or get_token()
-            if not token:
-                raise RuntimeError(
-                    "No Hugging Face token found. Run 'hf auth login' "
-                    "or set HF_TOKEN in the server configuration."
-                )
-            self._client = Client(self._space_id, token=token)
+            token = self._token or os.environ.get("HF_TOKEN") or None
+            self._client = Client(self._space_id, token=token, verbose=False)
         return self._client
 
     async def detect(self, image: str) -> dict:
