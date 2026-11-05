@@ -52,7 +52,7 @@ async def call(args: dict) -> dict:
 async def test_missing_extra_explains_install(image_path, monkeypatch):
     monkeypatch.setattr(face_guard, "opencv_available", lambda: False)
     monkeypatch.setenv(rs.SERPAPI_ENV, "k")
-    with pytest.raises(ToolError, match="uv sync --extra reverse-search"):
+    with pytest.raises(ToolError, match=r"geotrace\[reverse-search\]"):
         await call({"image": image_path, "cell": "B2"})
 
 

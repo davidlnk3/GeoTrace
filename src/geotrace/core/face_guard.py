@@ -4,7 +4,7 @@ This is a safeguard, not a guarantee: Haar cascades miss faces that are small, t
 partly hidden, blurred or poorly lit, and the main protection is the tool description telling
 the model never to search people. A miss here must not be read as "no person in the crop".
 
-Needs OpenCV from the optional extra: uv sync --extra reverse-search
+Needs OpenCV from the optional 'reverse-search' extra.
 """
 import importlib.util
 from functools import cache
@@ -12,8 +12,10 @@ from typing import Any
 
 from PIL import Image
 
+from geotrace.core.extras import install_hint
+
 DETECT_MAX_SIDE = 1024   # detection runs on a downscaled copy for speed
-INSTALL_HINT = "uv sync --extra reverse-search"
+INSTALL_HINT = install_hint("reverse-search")
 
 
 def opencv_available() -> bool:

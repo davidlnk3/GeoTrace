@@ -24,6 +24,7 @@ from typing import Protocol
 from PIL import Image
 
 from geotrace.core import zoom
+from geotrace.core.extras import install_hint
 from geotrace.core.images import open_rgb
 
 # --- Configuration -----------------------------------------------------------------------
@@ -45,10 +46,7 @@ MAX_RETRY_UPSCALE = zoom.MAX_UPSCALE  # ...and at most this much, and never past
 # 'd01S', a word read sideways as '1') often score higher than the correct upright text.
 ROTATION_INFO = [90, 180, 270]
 
-INSTALL_HINT = (
-    "OCR needs the optional 'ocr' extra, which is not installed. "
-    "Install it with `uv sync --extra ocr` (or `pip install -e \".[ocr]\"`) and restart the server."
-)
+INSTALL_HINT = "OCR needs the optional 'ocr' extra, which is not installed. " + install_hint("ocr")
 
 # --- EasyOCR language groups (easyocr/config.py, v1.7.2) ---------------------------------
 

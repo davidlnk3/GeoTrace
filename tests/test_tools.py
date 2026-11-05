@@ -111,7 +111,7 @@ def test_extract_text_invalid_languages(ocr_mocked):
 
 def test_extract_text_without_extra(monkeypatch):
     monkeypatch.setattr(ocr, "is_available", lambda: False)
-    with pytest.raises(ToolError, match="uv sync --extra ocr"):
+    with pytest.raises(ToolError, match=r"geotrace\[ocr\]"):
         asyncio.run(extract_text(image="x.jpg", ctx=FakeContext()))  # type: ignore[arg-type]
 
 

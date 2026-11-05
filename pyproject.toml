@@ -2,13 +2,14 @@
 name = "geotrace"
 license = "MIT"
 license-files = ["LICENSE"]
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.11"
 dependencies = [
     "gradio-client>=2.7.2",
     "httpx>=0.28.1",
     "huggingface-hub>=2.4.0",
     "mcp>=2.3",
+    "numpy",  # core/location_regions.py, imported at startup by the location_guesser_* tools
     "pillow>=13.0.0",
     "pillow-heif>=1.8.1",
     "pydantic>=2.14.1",
@@ -20,7 +21,7 @@ calibration = [
     "geocalib @ git+https://github.com/cvg/GeoCalib.git",
     "torch",
     "torchvision",
-    "opencv-python-headless",
+    "opencv-python-headless>=4.8,<5",
     "kornia",
 ]
 # OCR for the extract_text tool. EasyOCR pulls in torch, torchvision and opencv-python-headless.
@@ -41,13 +42,33 @@ verification = [
     "torchvision",
     "safetensors",
     "numpy",
-    "opencv-python-headless",
+    "opencv-python-headless>=4.8,<5",
     "platformdirs",
+]
+# DINOv2 sun model for relative_sun_position_from_outdoor_lighting (core/sun_model.py).
+# The checkpoint is downloaded from the davidlnk3/geotrace-sun model repo on first use.
+sun = [
+    "torch",
+    "transformers",
+]
+# EVA02-CLIP time probing for time_from_objects (core/time_objects.py). Weights download on first use.
+geoclip = [
+    "torch",
+    "open_clip_torch",
+]
+# PLONK for the location_guesser_* tools (core/plonk_location.py, core/location_regions.py).
+# diff-plonk pins scipy==1.13.1, which has no wheels for the newest Python, so it is left out of `all`.
+plonk = [
+    "diff-plonk",
+    "reverse_geocoder",
+]
+# Every extra except plonk.
+all = [
+    "geotrace[calibration,ocr,reverse-search,verification,sun,geoclip]",
 ]
 
 [dependency-groups]
 dev = [
-    "numpy",  # imported by core/location_regions.py but not in the base dependencies
     "pytest>=8",
     "pytest-asyncio>=1.0",
     "ruff",
@@ -79,9 +100,14 @@ line-length = 120
 # One OpenCV for every extra: opencv-python-headless. LightGlue and GeoCalib require opencv-python,
 # and EasyOCR opencv-python-headless; both ship the same cv2 module, so installing both breaks it
 # (removing or upgrading one deletes or mismatches the other's files). GeoTrace never opens a
-# window, so the GUI build is dropped. Only uv applies this; see the README for pip.
+# window, so the GUI build is dropped. uv applies this only inside this project (uv sync / uv run),
+# not when GeoTrace is installed as a package with uvx or pip.
 # The lock resolves one version for all extras, so the reverse-search pin keeps everyone on 4.x.
 exclude-dependencies = ["opencv-python"]
+# diff-plonk pins scipy==1.13.1, which has no wheels after Python 3.12. PLONK runs with newer scipy,
+# so the project lock lifts the pin. Like the line above, this only applies inside the project:
+# package installs get scipy 1.13.1, which is why the README's uvx command uses --python 3.12.
+override-dependencies = ["scipy>=1.13.1"]
 
 [tool.pyright]
 venvPath = "."

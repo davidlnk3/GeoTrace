@@ -36,51 +36,115 @@ GeoTrace allows you to find the where and the when an image was taken. The main 
 | 17 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing. This gives a "photo taken no earlier than" year. |
 | 18 | `inspect_calibration` | Diagnostics | Runs GeoCalib and returns its raw outputs: focal length, field of view, gravity vector, roll and pitch, and their uncertainties. |
 
-## Setup
+## Install
 
-### Optional dependencies
-
-The server starts without any extras. A tool whose dependencies are missing returns an error explaining what to install.
-
-| Tools | Install |
-|-------|---------|
-| `extract_text` | `uv sync --extra ocr` (EasyOCR models download to `~/.EasyOCR/` on first use) |
-| `reverse_search_image` | `uv sync --extra reverse-search` (OpenCV, for the face check) |
-| `relative_sun_position_from_shadows`, `inspect_calibration` | `uv sync --extra calibration` (GeoCalib) |
-| `verify_candidate_locations`, `compare_images` | `uv sync --extra verification` (PyTorch, LightGlue, OpenCV) |
-| `relative_sun_position_from_outdoor_lighting` | `pip install torch transformers` (weights are in `models/sun/best.pt`) |
-| `time_from_objects` | `pip install torch open_clip_torch` (EVA02-CLIP weights download on first use) |
-| `location_guesser_*` | `pip install diff-plonk reverse_geocoder`. On Python 3.15, install `diff-plonk` with `--no-deps` and add `scipy`, `geoopt`, `torchdiffeq`, `einops` and `accelerate`. |
-
-With pip instead of uv, use `pip install -e ".[<extra>]"`. All extras use `opencv-python-headless`. pip cannot drop the `opencv-python` that LightGlue and GeoCalib require, so after a pip install of `verification` or `calibration`, run:
+GeoTrace is a local stdio MCP server. Every harness starts it with the same [`uvx`](https://docs.astral.sh/uv/) command, so the only requirement is [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```bash
-pip uninstall -y opencv-python && pip install --force-reinstall --no-deps opencv-python-headless
+uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotrace
 ```
 
-### Environment variables
+`--python 3.12` keeps every machine on the same interpreter (PLONK's pinned scipy and some PyTorch builds lag behind newer Python versions). The `@v0.2.0` tag pins the release: uvx caches the install, so change the tag to upgrade.
 
-Set them in the `"env"` block of the GeoTrace entry in `claude_desktop_config.json`, then restart Claude Desktop:
+### Choose the tools you need
+
+The base install starts the server and runs every tool that needs no machine-learning model. The other tools need an extra, and until it is installed they return an error with the command to add it. To install extras, put them in brackets after `geotrace` and quote the whole `--from` value:
+
+```bash
+uvx --python 3.12 --from 'geotrace[ocr,verification] @ git+https://github.com/davidlnk3/GeoTrace@v0.2.0' geotrace
+```
+
+| Extra | Tools | Notes |
+|-------|-------|-------|
+| `ocr` | `extract_text` | EasyOCR models download to `~/.EasyOCR/` on first use |
+| `reverse-search` | `reverse_search_image` | OpenCV, for the face check |
+| `calibration` | `relative_sun_position_from_shadows`, `inspect_calibration` | GeoCalib and PyTorch |
+| `verification` | `verify_candidate_locations`, `compare_images` | PyTorch, LightGlue and OpenCV |
+| `sun` | `relative_sun_position_from_outdoor_lighting` | PyTorch and transformers. Weights download from [`davidlnk3/geotrace-sun`](https://huggingface.co/davidlnk3/geotrace-sun) on first use |
+| `geoclip` | `time_from_objects` | PyTorch and open_clip. EVA02-CLIP weights download on first use |
+| `plonk` | `location_guesser_*` | PLONK and reverse_geocoder. Needs Python 3.12 or older |
+| `all` | every tool except `location_guesser_*` | add `plonk` for those: `geotrace[all,plonk]` |
+
+The extras with PyTorch download several GB. Run the command once in a terminal before adding it to a harness: the first install can take longer than the harness waits for a server to start. Later starts reuse the cache.
+
+### Add it to your harness
+
+Each snippet uses the base install. For extras, replace the `--from` value with the bracketed form above. `env` is optional: add only the keys you use (see [Environment variables](#environment-variables)).
+
+**Claude Code**
+
+```bash
+claude mcp add geotrace --scope user -e HF_TOKEN=hf_... -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotrace
+```
+
+**Codex**
+
+```bash
+codex mcp add geotrace --env HF_TOKEN=hf_... -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.0 geotrace
+```
+
+or in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.geotrace]
+command = "uvx"
+args = ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"]
+startup_timeout_sec = 60
+env = { HF_TOKEN = "hf_..." }
+```
+
+**Claude Desktop, Cursor and other `mcpServers` clients** (`claude_desktop_config.json`, `~/.cursor/mcp.json`, ...):
 
 ```json
 {
   "mcpServers": {
     "geotrace": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/GeoTrace", "run", "geotrace"],
-      "env": {
-        "SERPAPI_API_KEY": "your-serpapi-key",
-        "GOOGLE_VISION_API_KEY": "your-google-cloud-key",
-        "MAPILLARY_TOKEN": "MLY|..."
+      "command": "uvx",
+      "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"],
+      "env": { "HF_TOKEN": "hf_..." }
+    }
+  }
+}
+```
+
+Desktop apps on macOS may not see your shell's `PATH`. If the server fails to start, set `"command"` to the full path printed by `which uvx`.
+
+**OpenClaw** (`~/.openclaw/openclaw.json`):
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "geotrace": {
+        "command": "uvx",
+        "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"],
+        "env": { "HF_TOKEN": "hf_..." }
       }
     }
   }
 }
 ```
 
+**Hermes Agent** (`~/.hermes/config.yaml`, then `/reload-mcp` in a running session). Hermes passes only the variables listed in `env` to the server:
+
+```yaml
+mcp_servers:
+  geotrace:
+    command: uvx
+    args: ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.0", "geotrace"]
+    env:
+      HF_TOKEN: hf_...
+```
+
+### Environment variables
+
+Set them in the harness's `env` block for GeoTrace, then restart the harness or reload its MCP servers.
+
 - `SERPAPI_API_KEY` / `GOOGLE_VISION_API_KEY`: used by `reverse_search_image`. Set either one or both. Get the SerpApi key at [serpapi.com](https://serpapi.com). For Cloud Vision, enable the Cloud Vision API with billing on and create a key, ideally restricted to that API. If only the Cloud Vision key is set, the tool falls back to it.
 - `MAPILLARY_TOKEN`: used by `verify_candidate_locations`. Register an application in the [Mapillary developer dashboard](https://www.mapillary.com/dashboard/developers) (read access is enough) and copy its client access token.
-- `GEOTRACE_RETRIEVAL_BACKEND=space` (optional, with an optional `HF_TOKEN`): runs MegaLoc ranking on a GPU in the [`davidlnk3/megaloc-descriptors`](https://huggingface.co/spaces/davidlnk3/megaloc-descriptors) Space (source in `hf_space/megaloc/`) instead of locally. `GEOTRACE_MEGALOC_SPACE` selects another Space with the same API. The Space receives the query image, so don't use it for images that must not leave your machine.
+- `HF_TOKEN` (optional): your Hugging Face token. The SSIS and MegaLoc Spaces then use your account's ZeroGPU quota instead of the small anonymous one.
+- `GEOTRACE_RETRIEVAL_BACKEND=space` (optional): runs MegaLoc ranking on a GPU in the [`davidlnk3/megaloc-descriptors`](https://huggingface.co/spaces/davidlnk3/megaloc-descriptors) Space (source in `hf_space/megaloc/`) instead of locally. `GEOTRACE_MEGALOC_SPACE` selects another Space with the same API. The Space receives the query image, so don't use it for images that must not leave your machine.
+- `GEOTRACE_SUN_CHECKPOINT` (optional): path to a local copy of the sun model's `best.pt`, for machines that cannot reach Hugging Face.
 
 > **About SerpApi.** SerpApi is a third-party paid service that scrapes Google results, and each search uses credits from your plan. Google sued SerpApi in December 2025, and the case was still pending at last check, so the service could stop working at any time. Google Cloud Vision Web Detection is the official alternative.
 

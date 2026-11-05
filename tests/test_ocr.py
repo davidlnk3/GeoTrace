@@ -321,5 +321,5 @@ def test_easyocr_backend_without_extra(monkeypatch):
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
-    with pytest.raises(ocr.OCRUnavailableError, match="uv sync --extra ocr"):
+    with pytest.raises(ocr.OCRUnavailableError, match=r"geotrace\[ocr\]"):
         ocr.EasyOCRBackend(["en"])

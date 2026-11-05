@@ -8,10 +8,15 @@ Torch and transformers are imported lazily, so the rest of GeoTrace still
 starts when they are not installed.
 """
 import io
+import os
 from pathlib import Path
 
-# Repository root is four levels up from this file: src/geotrace/core/sun_model.py
-CHECKPOINT = Path(__file__).resolve().parents[3] / "models" / "sun" / "best.pt"
+# The checkpoint is downloaded from the Hugging Face Hub on first use, pinned to a commit so a new
+# upload can't change the results. GEOTRACE_SUN_CHECKPOINT points to a local file instead.
+CHECKPOINT_REPO = "davidlnk3/geotrace-sun"
+CHECKPOINT_FILE = "best.pt"
+CHECKPOINT_REVISION = "d8035af69f5b37aaed290bba5e98bca00d9df0b0"
+CHECKPOINT_ENV = "GEOTRACE_SUN_CHECKPOINT"
 
 CROP_SIZE = 128          # input size used in training (allweather/data.py)
 BACKBONE_SIZE = 126      # DINOv2 input (multiple of the 14-px patch size)
@@ -80,6 +85,20 @@ def _build_network():
     return SunNetDINOv2()
 
 
+def checkpoint_path() -> Path:
+    """Return the local checkpoint path, downloading it from the Hub when no local file is set."""
+    local = os.environ.get(CHECKPOINT_ENV)
+    if local:
+        path = Path(local).expanduser()
+        if not path.is_file():
+            raise FileNotFoundError(f"Sun model checkpoint not found at {path} (set by {CHECKPOINT_ENV}).")
+        return path
+
+    from huggingface_hub import hf_hub_download
+
+    return Path(hf_hub_download(CHECKPOINT_REPO, CHECKPOINT_FILE, revision=CHECKPOINT_REVISION))
+
+
 def load_model():
     """Load the checkpoint once and keep it in memory."""
     global _model
@@ -88,9 +107,7 @@ def load_model():
 
     import torch
 
-    if not CHECKPOINT.is_file():
-        raise FileNotFoundError(f"Sun model checkpoint not found at {CHECKPOINT}.")
-    state = torch.load(CHECKPOINT, map_location="cpu", weights_only=True)
+    state = torch.load(checkpoint_path(), map_location="cpu", weights_only=True)
     if state.get("arch") != "dinov2":
         raise ValueError(f"Checkpoint arch is {state.get('arch')!r}; expected 'dinov2'.")
 
