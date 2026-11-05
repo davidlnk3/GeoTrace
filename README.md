@@ -13,29 +13,6 @@
 
 GeoTrace allows you to find the where and the when an image was taken. The main purpose of this work is educational and, in case it can, to help journalists and OSINT experts in the research of criminal activity and similar. My interest in OSINT started with Sofia Santos and bellingcat challenges, whose I share their vision of revealing human rights violations all around the world in order to concern people and authorities about them. Therefore, this project aims to provide a tool to people wanting to collaborate in this tasks.
 
-## Tools
-
-| # | Tool | Category | Description |
-|---|------|----------|-------------|
-| 1 | `view_image` | Image inspection | Returns the image so the model can describe its visual clues. With `grid=True` it draws a labelled grid on a copy, so you can name cells like `C2` for other tools. |
-| 2 | `zoom_image` | Image inspection | Crops a cell or region from the original full-resolution file to read small details such as signs and plates. Small crops are upscaled, which adds no new detail. |
-| 3 | `extract_metadata` | Image inspection | Reads EXIF metadata, camera data and GPS from an image URL or a local file path. |
-| 4 | `extract_text` | Text / OCR | Reads text with EasyOCR, either over the whole image or in one cell or region. Returns text blocks with confidence, bbox and relative size, merges nearby words, and can also read rotated text and non-Latin scripts. |
-| 5 | `find_named_features` | OpenStreetMap | Searches OSM inside a bounding box for features whose name contains a given text, such as a shop or street name found by OCR. Matching ignores case and accents. Returns up to 25 results nearest the box centre. |
-| 6 | `overpass_query` | OpenStreetMap | Runs a custom Overpass QL query inside a bounding box. The size limit depends on how rare the feature is (10–2500 km²) and every filter must use `{{bbox}}`. Returns OSM JSON elements. |
-| 7 | `location_guesser_yfcc` | Geolocation (AI) | General-purpose location estimate for any image. Returns probable regions with a probability, centre, radius and country, plus a localizability rating. |
-| 8 | `location_guesser_osv` | Geolocation (AI) | Location estimate for street-level photos (roads, buildings, signs) using StreetCLIP. Output format is the same as the other guessers. |
-| 9 | `location_guesser_inat` | Geolocation (AI) | Location estimate for nature photos (plants, animals, landscapes). Output format is the same as the other guessers. |
-| 10 | `reverse_search_image` | Web search | Reverse image search on the full image or one region, for landmarks, buildings, logos and signs only, never faces. Uses SerpApi (Google Lens) or Google Cloud Vision, may cost paid credits, and repeated crops are served from cache. |
-| 11 | `verify_candidate_locations` | Verification | Checks candidate coordinates against nearby Mapillary photos: ranks them with MegaLoc, then confirms geometrically with LightGlue and RANSAC. Stops at the first match and needs `MAPILLARY_TOKEN`. |
-| 12 | `compare_images` | Verification | Checks whether two images show the same place using LightGlue and RANSAC geometry only. The verdict is `match`, `similar` or `no_match`. |
-| 13 | `relative_sun_position_from_outdoor_lighting` | Sun analysis | Estimates sun altitude and azimuth relative to the camera from the scene's lighting, using a DINOv2 model. Typical error is about 1.6° for altitude and 5.6° for azimuth. |
-| 14 | `relative_sun_position_from_shadows` | Sun analysis | Estimates sun direction and elevation from object–shadow pairs, with the camera calibrated by GeoCalib. It is precise only when the confidence (`pair_score`) is high. |
-| 15 | `location_from_sun_position` | Sun analysis | Takes a UTC date/time plus sun elevation and azimuth, and returns the possible latitude/longitude (usually two mirror-image solutions). |
-| 16 | `time_from_sun_position` | Sun analysis | Takes a location plus sun elevation and azimuth, and returns the likely UTC dates and times, best match first. |
-| 17 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing. This gives a "photo taken no earlier than" year. |
-| 18 | `inspect_calibration` | Diagnostics | Runs GeoCalib and returns its raw outputs: focal length, field of view, gravity vector, roll and pitch, and their uncertainties. |
-
 ## Install
 
 GeoTrace is a local stdio MCP server. Every harness starts it with the same [`uvx`](https://docs.astral.sh/uv/) command, so the only requirement is [uv](https://docs.astral.sh/uv/getting-started/installation/):
@@ -147,6 +124,29 @@ Set them in the harness's `env` block for GeoTrace, then restart the harness or 
 - `GEOTRACE_SUN_CHECKPOINT` (optional): path to a local copy of the sun model's `best.pt`, for machines that cannot reach Hugging Face.
 
 > **About SerpApi.** SerpApi is a third-party paid service that scrapes Google results, and each search uses credits from your plan. Google sued SerpApi in December 2025, and the case was still pending at last check, so the service could stop working at any time. Google Cloud Vision Web Detection is the official alternative.
+
+## Tools
+
+| # | Tool | Category | Description |
+|---|------|----------|-------------|
+| 1 | `view_image` | Image inspection | Returns the image so the model can describe its visual clues. With `grid=True` it draws a labelled grid on a copy, so you can name cells like `C2` for other tools. |
+| 2 | `zoom_image` | Image inspection | Crops a cell or region from the original full-resolution file to read small details such as signs and plates. Small crops are upscaled, which adds no new detail. |
+| 3 | `extract_metadata` | Image inspection | Reads EXIF metadata, camera data and GPS from an image URL or a local file path. |
+| 4 | `extract_text` | Text / OCR | Reads text with EasyOCR, either over the whole image or in one cell or region. Returns text blocks with confidence, bbox and relative size, merges nearby words, and can also read rotated text and non-Latin scripts. |
+| 5 | `find_named_features` | OpenStreetMap | Searches OSM inside a bounding box for features whose name contains a given text, such as a shop or street name found by OCR. Matching ignores case and accents. Returns up to 25 results nearest the box centre. |
+| 6 | `overpass_query` | OpenStreetMap | Runs a custom Overpass QL query inside a bounding box. The size limit depends on how rare the feature is (10–2500 km²) and every filter must use `{{bbox}}`. Returns OSM JSON elements. |
+| 7 | `location_guesser_yfcc` | Geolocation (AI) | General-purpose location estimate for any image. Returns probable regions with a probability, centre, radius and country, plus a localizability rating. |
+| 8 | `location_guesser_osv` | Geolocation (AI) | Location estimate for street-level photos (roads, buildings, signs) using StreetCLIP. Output format is the same as the other guessers. |
+| 9 | `location_guesser_inat` | Geolocation (AI) | Location estimate for nature photos (plants, animals, landscapes). Output format is the same as the other guessers. |
+| 10 | `reverse_search_image` | Web search | Reverse image search on the full image or one region, for landmarks, buildings, logos and signs only, never faces. Uses SerpApi (Google Lens) or Google Cloud Vision, may cost paid credits, and repeated crops are served from cache. |
+| 11 | `verify_candidate_locations` | Verification | Checks candidate coordinates against nearby Mapillary photos: ranks them with MegaLoc, then confirms geometrically with LightGlue and RANSAC. Stops at the first match and needs `MAPILLARY_TOKEN`. |
+| 12 | `compare_images` | Verification | Checks whether two images show the same place using LightGlue and RANSAC geometry only. The verdict is `match`, `similar` or `no_match`. |
+| 13 | `relative_sun_position_from_outdoor_lighting` | Sun analysis | Estimates sun altitude and azimuth relative to the camera from the scene's lighting, using a DINOv2 model. Typical error is about 1.6° for altitude and 5.6° for azimuth. |
+| 14 | `relative_sun_position_from_shadows` | Sun analysis | Estimates sun direction and elevation from object–shadow pairs, with the camera calibrated by GeoCalib. It is precise only when the confidence (`pair_score`) is high. |
+| 15 | `location_from_sun_position` | Sun analysis | Takes a UTC date/time plus sun elevation and azimuth, and returns the possible latitude/longitude (usually two mirror-image solutions). |
+| 16 | `time_from_sun_position` | Sun analysis | Takes a location plus sun elevation and azimuth, and returns the likely UTC dates and times, best match first. |
+| 17 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing. This gives a "photo taken no earlier than" year. |
+| 18 | `inspect_calibration` | Diagnostics | Runs GeoCalib and returns its raw outputs: focal length, field of view, gravity vector, roll and pitch, and their uncertainties. |
 
 ## License
 
