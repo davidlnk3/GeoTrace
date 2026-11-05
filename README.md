@@ -183,7 +183,7 @@ The Space is public and is called anonymously by default. Set `HF_TOKEN` (option
 
 ### GeoCalib
 
-GeoCalib is used unmodified as a dependency. Its weights are downloaded from the
+GeoCalib is installed from the [`davidlnk3/GeoCalib`](https://github.com/davidlnk3/GeoCalib) fork, pinned to a commit. The fork's only change is to depend on `opencv-python-headless` instead of `opencv-python`, so that all extras share one OpenCV build; the code is unmodified. Its weights are downloaded from the
 official source on first use and are not redistributed with GeoTrace.
 
 ### All-Weather Deep Outdoor Lighting Estimation
@@ -194,7 +194,7 @@ Reimplementation of the sun-position part of *All-Weather Deep Outdoor Lighting 
 
 `verify_candidate_locations` downloads Mapillary thumbnails at run time and does not store or redistribute them. Only MegaLoc descriptors (numbers, not images) are cached locally, keyed by Mapillary image id. Mapillary imagery is licensed under CC BY-SA 4.0: if you publish a Mapillary photo found by the tool, credit Mapillary and the contributor, and link the image (`https://www.mapillary.com/app/?pKey=<reference_id>`).
 
-MegaLoc is loaded with `torch.hub` from `gmberton/MegaLoc` and LightGlue is installed from `cvg/LightGlue`, both pinned to a commit and used unmodified. LightGlue can also run with DISK features (Apache 2.0, as stated in the LightGlue README), selected in `core/matching.py`.
+MegaLoc is loaded with `torch.hub` from `gmberton/MegaLoc`, pinned to a commit and used unmodified. LightGlue is installed from the [`davidlnk3/LightGlue`](https://github.com/davidlnk3/LightGlue) fork, pinned to a commit: upstream `cvg/LightGlue` with one change, depending on `opencv-python-headless` instead of `opencv-python`. The code is unmodified. LightGlue can also run with DISK features (Apache 2.0, as stated in the LightGlue README), selected in `core/matching.py`.
 
 Berton, G., & Masone, C. (2025). MegaLoc: One Retrieval to Place Them All. CVPR Workshops.
 Lindenberger, P., Sarlin, P.-E., & Pollefeys, M. (2023). LightGlue: Local Feature Matching at Light Speed. ICCV.

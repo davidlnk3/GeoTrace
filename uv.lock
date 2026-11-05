@@ -12,7 +12,6 @@ resolution-markers = [
 
 [manifest]
 overrides = [{ name = "scipy", specifier = ">=1.13.1" }]
-excludes = ["opencv-python"]
 
 [[package]]
 name = "accelerate"
@@ -711,10 +710,11 @@ wheels = [
 [[package]]
 name = "geocalib"
 version = "1.0"
-source = { git = "https://github.com/cvg/GeoCalib.git#1dedb29f94fc11b896c5f572005978aeebccd67f" }
+source = { git = "https://github.com/davidlnk3/GeoCalib.git?rev=81c46d450522a4527e44595d646f617f90e3c2d9#81c46d450522a4527e44595d646f617f90e3c2d9" }
 dependencies = [
     { name = "kornia" },
     { name = "matplotlib" },
+    { name = "opencv-python-headless" },
     { name = "torch" },
     { name = "torchvision" },
 ]
@@ -824,13 +824,13 @@ dev = [
 requires-dist = [
     { name = "diff-plonk", marker = "extra == 'plonk'" },
     { name = "easyocr", marker = "extra == 'ocr'", specifier = ">=1.7.2" },
-    { name = "geocalib", marker = "extra == 'calibration'", git = "https://github.com/cvg/GeoCalib.git" },
+    { name = "geocalib", marker = "extra == 'calibration'", git = "https://github.com/davidlnk3/GeoCalib.git?rev=81c46d450522a4527e44595d646f617f90e3c2d9" },
     { name = "geotrace", extras = ["calibration", "ocr", "reverse-search", "verification", "sun", "geoclip"], marker = "extra == 'all'" },
     { name = "gradio-client", specifier = ">=2.7.2" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "huggingface-hub", specifier = ">=2.4.0" },
     { name = "kornia", marker = "extra == 'calibration'" },
-    { name = "lightglue", marker = "extra == 'verification'", git = "https://github.com/cvg/LightGlue.git?rev=5a650c444718caffc2669dc0094cde908f42dd73" },
+    { name = "lightglue", marker = "extra == 'verification'", git = "https://github.com/davidlnk3/LightGlue.git?rev=a88b17bc606379f561a8bcbab974768a29917920" },
     { name = "mcp", specifier = ">=2.3" },
     { name = "numpy" },
     { name = "numpy", marker = "extra == 'verification'" },
@@ -1277,11 +1277,12 @@ wheels = [
 [[package]]
 name = "lightglue"
 version = "0.0"
-source = { git = "https://github.com/cvg/LightGlue.git?rev=5a650c444718caffc2669dc0094cde908f42dd73#5a650c444718caffc2669dc0094cde908f42dd73" }
+source = { git = "https://github.com/davidlnk3/LightGlue.git?rev=a88b17bc606379f561a8bcbab974768a29917920#a88b17bc606379f561a8bcbab974768a29917920" }
 dependencies = [
     { name = "kornia" },
     { name = "matplotlib" },
     { name = "numpy" },
+    { name = "opencv-python-headless" },
     { name = "torch" },
     { name = "torchvision" },
 ]
