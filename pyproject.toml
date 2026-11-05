@@ -2,7 +2,7 @@
 name = "geotrace"
 license = "MIT"
 license-files = ["LICENSE"]
-version = "0.2.0"
+version = "0.2.1"
 requires-python = ">=3.11"
 dependencies = [
     "gradio-client>=2.7.2",
