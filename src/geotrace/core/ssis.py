@@ -1,8 +1,11 @@
 # geotrace/core/ssis.py
 import asyncio
 import os
+import tempfile
 
 from gradio_client import Client, handle_file
+
+from geotrace.core.images import load_image, open_rgb
 
 DEFAULT_SPACE = "davidlnk3/ssis-demo"
 
@@ -26,13 +29,26 @@ class SSISClient:
         return self._client
 
     async def detect(self, image: str) -> dict:
-        client = await asyncio.to_thread(self._connect)
-        result = await asyncio.to_thread(
-            client.predict, handle_file(image), api_name="/detect_pairs"
-        )
+        # The Space decodes uploads with PIL, which can't read HEIC, so send a JPEG.
+        data = await load_image(image)
+        jpeg = await asyncio.to_thread(_to_jpeg_file, data)
+        try:
+            client = await asyncio.to_thread(self._connect)
+            result = await asyncio.to_thread(
+                client.predict, handle_file(jpeg), api_name="/detect_pairs"
+            )
+        finally:
+            os.remove(jpeg)
         if isinstance(result, tuple):
             result = next(r for r in result if isinstance(r, dict))
         return result
+
+
+def _to_jpeg_file(data: bytes) -> str:
+    fd, path = tempfile.mkstemp(suffix=".jpg")
+    with os.fdopen(fd, "wb") as f:
+        open_rgb(data).save(f, format="JPEG", quality=95)
+    return path
 
 
 ssis = SSISClient()

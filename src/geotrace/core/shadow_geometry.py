@@ -8,8 +8,8 @@ Polygons = list[list[list[int]]]  # as returned by the Space: [[[x, y], ...], ..
 @dataclass
 class ShadowGeometry:
     pair_score: float            # model confidence (min between object and shadow)
-    shadow_direction_deg: float  # on the ground, clockwise from the camera's forward direction (0 = away, 90 = right)
-    sun_elevation_deg: float     # atan(height / length), calibrated if a camera model is given
+    sun_relative_azimuth_to_camera_deg: float  # clockwise from the camera's forward direction (0 = away, 90 = right)
+    sun_altitude_deg: float      # atan(height / length), calibrated if a camera model is given
 
 
 def _points(polygons: Polygons) -> list[Point]:
