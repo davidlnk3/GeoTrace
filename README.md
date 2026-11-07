@@ -18,7 +18,7 @@ GeoTrace allows you to find the where and the when an image was taken. The main 
 GeoTrace is a local stdio MCP server. Every harness starts it with the same [`uvx`](https://docs.astral.sh/uv/) command, so the only requirement is [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```bash
-uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.1 geotrace
+uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.2 geotrace
 ```
 
 `--python 3.12` keeps every machine on the same interpreter (PLONK's pinned scipy and some PyTorch builds lag behind newer Python versions). The `@v0.2.0` tag pins the release: uvx caches the install, so change the tag to upgrade.
@@ -28,7 +28,7 @@ uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.1 geotra
 The base install starts the server and runs every tool that needs no machine-learning model. The other tools need an extra, and until it is installed they return an error with the command to add it. To install extras, put them in brackets after `geotrace` and quote the whole `--from` value:
 
 ```bash
-uvx --python 3.12 --from 'geotrace[all,plonk] @ git+https://github.com/davidlnk3/GeoTrace@v0.2.1' geotrace
+uvx --python 3.12 --from 'geotrace[all,plonk] @ git+https://github.com/davidlnk3/GeoTrace@v0.2.2' geotrace
 ```
 
 | Extra | Tools | Notes |
@@ -51,13 +51,13 @@ Each snippet uses the base install. For extras, replace the `--from` value with 
 **Claude Code**
 
 ```bash
-claude mcp add geotrace --scope user -e SERPAPI_API_KEY="..." -e MAPILLARY_TOKEN="..." -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.1 geotrace
+claude mcp add geotrace --scope user -e SERPAPI_API_KEY="..." -e MAPILLARY_TOKEN="..." -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.2 geotrace
 ```
 
 **Codex**
 
 ```bash
-codex mcp add geotrace --env SERPAPI_API_KEY="..." --env MAPILLARY_TOKEN="..." -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.1 geotrace
+codex mcp add geotrace --env SERPAPI_API_KEY="..." --env MAPILLARY_TOKEN="..." -- uvx --python 3.12 --from git+https://github.com/davidlnk3/GeoTrace@v0.2.2 geotrace
 ```
 
 or in `~/.codex/config.toml`:
@@ -65,7 +65,7 @@ or in `~/.codex/config.toml`:
 ```toml
 [mcp_servers.geotrace]
 command = "uvx"
-args = ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.1", "geotrace"]
+args = ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.2", "geotrace"]
 startup_timeout_sec = 60
 env = { SERPAPI_API_KEY="...",  MAPILLARY_TOKEN="..." }
 ```
@@ -77,7 +77,7 @@ env = { SERPAPI_API_KEY="...",  MAPILLARY_TOKEN="..." }
   "mcpServers": {
     "geotrace": {
       "command": "uvx",
-      "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.1", "geotrace"],
+      "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.2", "geotrace"],
       "env": { SERPAPI_API_KEY:"...",  MAPILLARY_TOKEN:"..." }
     }
   }
@@ -94,7 +94,7 @@ Desktop apps on macOS may not see your shell's `PATH`. If the server fails to st
     "servers": {
       "geotrace": {
         "command": "uvx",
-        "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.1", "geotrace"],
+        "args": ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.2", "geotrace"],
         "env": { SERPAPI_API_KEY:"...",  MAPILLARY_TOKEN:"..." }
       }
     }
@@ -108,7 +108,7 @@ Desktop apps on macOS may not see your shell's `PATH`. If the server fails to st
 mcp_servers:
   geotrace:
     command: uvx
-    args: ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.1", "geotrace"]
+    args: ["--python", "3.12", "--from", "git+https://github.com/davidlnk3/GeoTrace@v0.2.2", "geotrace"]
     env:
       SERPAPI_API_KEY:"..."
       MAPILLARY_TOKEN:"..."

@@ -6,3 +6,4 @@ __pycache__/
 src/geotrace/__pycache__
 src/geotrace/core/__pycache__
 src/geotrace/tools/__pycache__
+.claude/worktrees
