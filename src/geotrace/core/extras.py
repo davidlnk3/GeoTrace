@@ -5,6 +5,7 @@ import importlib.util
 
 REPO_URL = "https://github.com/davidlnk3/GeoTrace"
 VERIFICATION_MODULES = ("torch", "torchvision", "safetensors", "numpy", "cv2", "lightglue", "platformdirs")
+SUN_MODULES = ("torch", "transformers")
 
 
 def install_hint(extra: str) -> str:
@@ -31,4 +32,14 @@ def require_verification_extra() -> None:
         raise MissingExtraError(
             "The image verification dependencies are not installed (missing: "
             f"{', '.join(missing)}). " + install_hint("verification")
+        )
+
+
+def require_sun_extra() -> None:
+    """Raise MissingExtraError unless every module of the `sun` extra can be imported."""
+    missing = [name for name in SUN_MODULES if importlib.util.find_spec(name) is None]
+    if missing:
+        raise MissingExtraError(
+            "The sun model dependencies are not installed (missing: "
+            f"{', '.join(missing)}). " + install_hint("sun")
         )

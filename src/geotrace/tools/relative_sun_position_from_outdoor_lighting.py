@@ -1,5 +1,7 @@
 from mcp.server.mcpserver import Context
+from mcp.server.mcpserver.exceptions import ToolError
 from geotrace.server import mcp
+from geotrace.core import extras
 from geotrace.core.images import load_image
 from geotrace.core.sun_model import estimate
 
@@ -22,6 +24,10 @@ async def relative_sun_position_from_outdoor_lighting(
     image: Annotated[str, Field(description="URL or path of the image.")],
     ctx: Context,
 ) -> dict:
+    try:
+        extras.require_sun_extra()
+    except extras.MissingExtraError as exc:
+        raise ToolError(str(exc)) from exc
     await ctx.info("Estimating the sun position with the DINOv2 sun model")
     data = await load_image(image)
     result = await asyncio.to_thread(estimate, data)

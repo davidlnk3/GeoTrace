@@ -152,5 +152,5 @@ def estimate(image_bytes: bytes) -> dict:
     alt, az = model.decode(az_logits, el_logits)
     return {
         "sun_altitude_deg": round(float(alt[0]), 2),
-        "sun_azimuth_relative_camera_deg": round(float(az[0]), 2),
+        "sun_relative_azimuth_to_camera_deg": round(float(az[0]), 2),
     }
