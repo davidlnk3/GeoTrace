@@ -7,12 +7,7 @@ from pydantic import Field
 from typing import Annotated
 
 
-@mcp.tool(
-    name="time_from_sun_position",
-    description="Given a location and the sun's position (elevation and azimuth), returns the "
-    "probable dates and times (UTC) when the sun was in that position. "
-    "Results are sorted best match first.",
-)
+@mcp.tool()
 async def time_from_sun_position(
     latitude: Annotated[float, Field(description="Latitude in decimal degrees, north positive.", ge=-90, le=90)],
     longitude: Annotated[float, Field(description="Longitude in decimal degrees, east positive.", ge=-180, le=180)],
@@ -23,6 +18,12 @@ async def time_from_sun_position(
     tolerance: Annotated[float, Field(description="Max angular error in degrees to accept a match.", gt=0, le=10)] = 1.0,
     max_results: Annotated[int, Field(description="Maximum number of candidates to return.", ge=1, le=100)] = 10,
 ) -> dict:
+
+    """
+    Given a location and the sun's position (elevation and azimuth), returns the probable dates and times (UTC) 
+    when the sun was in that position. Results are sorted best match first.
+    """
+
     year = year or datetime.now(timezone.utc).year
     await ctx.info(f"Searching {year} for times with sun at {sun_elevation}° elevation, {sun_azimuth}° azimuth")
 
