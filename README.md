@@ -145,23 +145,6 @@ Set them in the harness's `env` block for GeoTrace, then restart the harness or 
 | 13 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing. This gives a "photo taken no earlier than" year. |
 | 14 | `inspect_calibration` | Diagnostics | Runs GeoCalib and returns its raw outputs: focal length, field of view, gravity vector, roll and pitch, and their uncertainties. |
 
-### Merged tools
-
-Six tools became three, to keep the surface small enough for a model to choose from reliably. The old names no longer exist, so update any harness config or saved prompt that uses them.
-
-| Was | Now |
-|-----|-----|
-| `zoom_image` | `view_image` with `cell` or `region` |
-| `location_guesser_osv` | `location_guesser` with `kind="street"` |
-| `location_guesser_yfcc` | `location_guesser` with `kind="general"` |
-| `location_guesser_inat` | `location_guesser` with `kind="nature"` |
-| `relative_sun_position_from_shadows` | `relative_sun_position`, when a shadow pair scores above 0.8 |
-| `relative_sun_position_from_outdoor_lighting` | `relative_sun_position`, as the fallback otherwise |
-
-`view_image` still returns the whole downscaled image when given neither `cell` nor `region`, and `grid=True` cannot be combined with either.
-
-`relative_sun_position` tries shadow geometry first and falls back to the lighting model by itself, so there is no longer a choice to make per image. It adds a `source` field (`shadows` or `outdoor_lighting`) saying which method answered and therefore how much to trust the numbers, and it keeps the shadow stage's `num_pairs`, `pairs` and `skipped` detail whenever that stage ran. A result with `source: outdoor_lighting` that still lists `pairs` means shadows were found but none was confident enough; a `shadow_error` field means the shadow stage could not run at all, which also happens when the `calibration` extra is missing.
-
 ## License
 
 GeoTrace is licensed under MIT License. See LICENSE.
