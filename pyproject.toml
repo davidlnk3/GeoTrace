@@ -9,7 +9,7 @@ dependencies = [
     "httpx>=0.28.1",
     "huggingface-hub>=2.4.0",
     "mcp>=2.3",
-    "numpy",  # core/location_regions.py, imported at startup by the location_guesser_* tools
+    "numpy",  # core/location_regions.py, imported at startup by the location_guesser tool
     "pillow>=13.0.0",
     "pillow-heif>=1.8.1",
     "pydantic>=2.14.1",
@@ -29,7 +29,7 @@ calibration = [
 ocr = [
     "easyocr>=1.7.2",
 ]
-# Face safeguard for reverse_search_region (core/face_guard.py). zoom_image and the grid don't need it.
+# Face safeguard for reverse_search_region (core/face_guard.py). view_image and the grid don't need it.
 # OpenCV 5 dropped CascadeClassifier and the bundled Haar cascades, so stay on 4.x.
 reverse-search = [
     "opencv-python-headless>=4.8,<5",
@@ -47,7 +47,7 @@ verification = [
     "opencv-python-headless>=4.8,<5",
     "platformdirs",
 ]
-# DINOv2 sun model for relative_sun_position_from_outdoor_lighting (core/sun_model.py).
+# DINOv2 sun model for the lighting fallback of relative_sun_position (core/sun_model.py).
 # The checkpoint is downloaded from the davidlnk3/geotrace-sun model repo on first use.
 sun = [
     "torch",
@@ -58,7 +58,7 @@ geoclip = [
     "torch",
     "open_clip_torch",
 ]
-# PLONK for the location_guesser_* tools (core/plonk_location.py, core/location_regions.py).
+# PLONK for the location_guesser tool (core/plonk_location.py, core/location_regions.py).
 # diff-plonk pins scipy==1.13.1, which has no wheels for the newest Python, so it is left out of `all`.
 plonk = [
     "diff-plonk",

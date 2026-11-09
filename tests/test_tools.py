@@ -173,4 +173,4 @@ def test_extract_text_retry_adds_warning_note(ocr_mocked, monkeypatch):
     result = asyncio.run(extract_text(image="x.jpg", ctx=FakeContext(), cell="B2"))  # type: ignore[arg-type]
     assert calls == [(200, 150), (800, 600)]  # native cell, then x4
     assert result["retried"] is True and result["blocks"]
-    assert "zoom_image" in result["note"]
+    assert "view_image" in result["note"]

@@ -29,8 +29,8 @@ def image_path(tmp_path):
     return str(path)
 
 
-async def test_zoom_image_returns_image_and_info(image_path):
-    result = await call("zoom_image", {"image": image_path, "cell": "c2"})
+async def test_view_image_cell_returns_image_and_info(image_path):
+    result = await call("view_image", {"image": image_path, "cell": "c2"})
     assert not result.is_error
     image, text = result.content
     assert isinstance(image, ImageContent) and image.mime_type == "image/jpeg"
@@ -41,10 +41,31 @@ async def test_zoom_image_returns_image_and_info(image_path):
     assert info["upscaled"] is True
 
 
-@pytest.mark.parametrize("args", [{}, {"cell": "A1", "region": [0, 0, 0.5, 0.5]}])
-async def test_zoom_image_requires_cell_xor_region(image_path, args):
+async def test_view_image_region_returns_image_and_info(image_path):
+    result = await call("view_image", {"image": image_path, "region": [0, 0, 0.5, 0.5]})
+    assert not result.is_error
+    image, text = result.content
+    assert isinstance(image, ImageContent)
+    info = json.loads(text.text)
+    assert "cell" not in info
+    assert info["source_pixels"] == [0, 0, 2000, 1500]
+
+
+async def test_view_image_rejects_cell_and_region(image_path):
     with pytest.raises(ToolError, match="exactly one"):
-        await mcp.call_tool("zoom_image", {"image": image_path, **args})
+        await mcp.call_tool("view_image", {"image": image_path, "cell": "A1", "region": [0, 0, 0.5, 0.5]})
+
+
+async def test_view_image_rejects_grid_with_cell(image_path):
+    with pytest.raises(ToolError, match="cannot be combined"):
+        await mcp.call_tool("view_image", {"image": image_path, "grid": True, "cell": "A1"})
+
+
+async def test_view_image_whole_image(image_path):
+    result = await call("view_image", {"image": image_path})
+    (image,) = result.content
+    assert isinstance(image, ImageContent)
+    assert Image.open(io.BytesIO(base64.b64decode(image.data))).size == (1568, 1176)
 
 
 async def test_view_image_grid(image_path):
