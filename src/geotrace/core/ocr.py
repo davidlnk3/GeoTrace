@@ -35,7 +35,7 @@ MAX_BLOCKS = 50
 # Only larger images are downscaled: small text needs resolution.
 MAX_SIDE = 3000
 # If the first pass finds nothing, the area is read once more enlarged with LANCZOS (the
-# filter zoom_image uses), up to the size zoom_image shows. Enlarging adds no detail. It is
+# filter view_image uses), up to the size view_image shows. Enlarging adds no detail. It is
 # only a fallback: on clean small text (8-18 px tall) a real EasyOCR test read as well or
 # better at native resolution, because the recogniser rescales each text line itself.
 RETRY_TARGET_SIDE = zoom.MAX_SIDE     # enlarge the longest side towards this...

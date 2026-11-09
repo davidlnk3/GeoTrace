@@ -99,7 +99,7 @@ async def extract_text(
         out["note"] = (
             "Nothing was found at native resolution; these blocks come from an enlarged copy, so "
             "the text is near the limit of what the pixels hold and misreadings are likely. "
-            "Check each one with zoom_image before using it."
+            "Check each one with view_image and a cell or region before using it."
         )
     if not result.blocks:
         out["note"] = (
