@@ -43,7 +43,7 @@ TRIAGE = """\
    signs, road markings, driving side, architecture, vegetation, terrain, weather, light and
    shadows, clothing, vehicles, objects that can be dated, landmarks).
 3. Classify the image: street-level, nature/landscape, or general/indoor. This decides which
-   location guesser fits and which strategies are possible."""
+   `location_guesser` kind fits and which strategies are possible."""
 
 HYPOTHESES = """\
 ## Method - competing hypotheses
@@ -57,7 +57,7 @@ HYPOTHESES = """\
 - Keep a running hypothesis table (status: confirmed / supported / weakened / rejected) and update
   it after each test. Do not drop a hypothesis without stating the evidence that ruled it out.
 - Independent evidence multiplies (text + OSM + sun + street-level match). Similar AI estimates
-  (the location guessers) do NOT: two guessers agreeing is one weak clue, not two."""
+  (the location guesser) do NOT: two guesser kinds agreeing is one weak clue, not two."""
 
 TOOL_DISCIPLINE = """\
 ## Tool discipline - do not repeat yourself
@@ -66,14 +66,16 @@ TOOL_DISCIPLINE = """\
   inconclusive, change the approach (another region, another strategy, another tool), not just retry.
 - Budget per investigation (exceed only with a stated new reason):
   - `extract_metadata`, `view_image(grid=True)`: once.
-  - `zoom_image` / `extract_text`: one call per distinct region of interest (about 6 regions max).
-  - `location_guesser_osv` / `_yfcc` / `_inat`: use the ONE that fits the image type; a second one
-    only if the first gives low localizability. Never all three.
+  - `view_image` with a cell or region / `extract_text`: one call per distinct region of
+    interest (about 6 regions max).
+  - `location_guesser`: once, with the ONE kind that fits the image type; a second kind only if
+    the first gives low localizability. Never all three kinds.
   - `reverse_search_image`: at most 3 distinct crops (paid credits). Never on people or faces.
   - `find_named_features` + `overpass_query`: at most 6 queries in total, each tied to a hypothesis.
   - `verify_candidate_locations`: at most 2 runs; batch all candidates in one call, sorted by
     likelihood.
-  - `relative_sun_position_from_shadows`, `relative_sun_position_from_outdoor_lighting`: once each.
+  - `relative_sun_position`: once. It tries shadows first and falls back to the lighting model
+    by itself, so there is no second tool to call.
   - `time_from_sun_position`, `location_from_sun_position`: at most 3 calls each, each with a
     clearly different input (another candidate place, year or time).
   - `time_from_objects`: once, with all datable objects in one list.
@@ -85,8 +87,10 @@ SUN_RULES = """\
 ## Using the sun correctly
 - The sun tools work in **UTC**. Convert local time to UTC with the place's time zone and daylight
   saving rules for that date (and back to local time in the report).
-- `relative_sun_position_from_shadows` and `relative_sun_position_from_outdoor_lighting` give the
-  sun azimuth RELATIVE to the camera (0 = straight ahead, 90 = right). The absolute azimuth needed
+- `relative_sun_position` gives the
+  sun azimuth RELATIVE to the camera (0 = straight ahead, 90 = right). Its `source` field says
+  whether the numbers came from shadow geometry (`shadows`, precise) or the lighting model
+  (`outdoor_lighting`, rougher: about 1.6 deg altitude and 5.6 deg azimuth, with a long tail). The absolute azimuth needed
   by `time_from_sun_position` / `location_from_sun_position` is:
   absolute_azimuth = (camera_heading + relative_azimuth) mod 360.
 - Camera heading sources, best first: `reference_heading_deg` of a `verify_candidate_locations`
@@ -156,9 +160,10 @@ TIME_RESULT = """
 
 GEO_STRATEGIES = """\
 ## Geolocation strategies (choose and combine, do not run everything)
-- **Text first:** zoom on signs and read them (`zoom_image`, `extract_text` with a cell); fix OCR
+- **Text first:** zoom on signs and read them (`view_image` with a cell, `extract_text` with a
+  cell); fix OCR
   misreadings with what you see; search names with `find_named_features` in the candidate area.
-- **Region proposals:** one location guesser that fits the image type gives candidate regions and
+- **Region proposals:** `location_guesser` with the kind that fits the image type gives candidate regions and
   a localizability rating. Use them as a prior to search, never as the answer.
 - **Feature combinations:** turn distinctive visible features into OSM tags and look for places
   where several co-occur with `overpass_query` (e.g. bus stop within 80 m of a pharmacy with a
@@ -168,7 +173,7 @@ GEO_STRATEGIES = """\
 - **Street-level verification:** once you have specific candidate points, `verify_candidate_locations`
   confirms the exact spot geometrically and gives the camera heading.
 - **Time to place:** if the date and time are known or narrowed, measure the sun
-  (`relative_sun_position_from_shadows` / `_outdoor_lighting`) and use `location_from_sun_position`
+  (`relative_sun_position`) and use `location_from_sun_position`
   to get latitude/longitude bands that rule candidate regions in or out."""
 
 CHRONO_STRATEGIES = """\

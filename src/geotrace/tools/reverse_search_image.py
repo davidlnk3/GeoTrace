@@ -19,7 +19,7 @@ from geotrace.tools.view_image import CellArg, RegionArg, load_image_or_error, r
     "give exactly one. Choosing a good crop: include the WHOLE object with a little context around it, pick "
     "something distinctive (a named facade, a unique sign, a logo, not a generic lamp post, tree or road), and "
     f"make sure it has enough original resolution (at least {reverse_search.MIN_CROP_PX} px per side in the "
-    "original image; check with zoom_image first). Each search can cost paid credits; an identical crop is "
+    "original image; check with view_image and a cell or region first). Each search can cost paid credits; an identical crop is "
     "answered from cache. backend: 'serpapi' (Google Lens via SerpApi, default) or 'cloud_vision' "
     "(Google Cloud Vision Web Detection). Returns best_guess, pages, exact_matches, visual_matches "
     f"(at most {reverse_search.MAX_ITEMS} each), total_results, truncated, the backend used and an optional note. "

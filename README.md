@@ -35,12 +35,12 @@ uvx --python 3.12 --from 'geotrace[all,plonk] @ git+https://github.com/davidlnk3
 |-------|-------|-------|
 | `ocr` | `extract_text` | EasyOCR models download to `~/.EasyOCR/` on first use |
 | `reverse-search` | `reverse_search_image` | OpenCV, for the face check |
-| `calibration` | `relative_sun_position_from_shadows`, `inspect_calibration` | GeoCalib and PyTorch |
+| `calibration` | `relative_sun_position` (shadow stage), `inspect_calibration` | GeoCalib and PyTorch |
 | `verification` | `verify_candidate_locations`, `compare_images` | PyTorch, LightGlue and OpenCV |
-| `sun` | `relative_sun_position_from_outdoor_lighting` | PyTorch and transformers. Weights download from [`davidlnk3/geotrace-sun`](https://huggingface.co/davidlnk3/geotrace-sun) on first use |
-| `geoclip` | `time_from_objects` | PyTorch and open_clip. EVA02-CLIP weights download on first use |
-| `plonk` | `location_guesser_*` | PLONK and reverse_geocoder. Needs Python 3.12 or older |
-| `all` | every tool except `location_guesser_*` | add `plonk` for those: `geotrace[all,plonk]` |
+| `sun` | `relative_sun_position` (lighting fallback) | PyTorch and transformers. Weights download from [`davidlnk3/geotrace-sun`](https://huggingface.co/davidlnk3/geotrace-sun) on first use |
+| `geoclip` | `time_from_objects` | PyTorch and open_clip. EVA02-CLIP weights and the [`davidlnk3/geotrace-photo-year`](https://huggingface.co/davidlnk3/geotrace-photo-year) year classifier download on first use |
+| `plonk` | `location_guesser` | PLONK and reverse_geocoder. Needs Python 3.12 or older |
+| `all` | every tool except `location_guesser` | add `plonk` for it: `geotrace[all,plonk]` |
 
 The extras with PyTorch download several GB. Run the command once in a terminal before adding it to a harness: the first install can take longer than the harness waits for a server to start. Later starts reuse the cache.
 
@@ -130,24 +130,20 @@ Set them in the harness's `env` block for GeoTrace, then restart the harness or 
 
 | # | Tool | Category | Description |
 |---|------|----------|-------------|
-| 1 | `view_image` | Image inspection | Returns the image so the model can describe its visual clues. With `grid=True` it draws a labelled grid on a copy, so you can name cells like `C2` for other tools. |
-| 2 | `zoom_image` | Image inspection | Crops a cell or region from the original full-resolution file to read small details such as signs and plates. Small crops are upscaled, which adds no new detail. |
-| 3 | `extract_metadata` | Image inspection | Reads EXIF metadata, camera data and GPS from an image URL or a local file path. |
-| 4 | `extract_text` | Text / OCR | Reads text with EasyOCR, either over the whole image or in one cell or region. Returns text blocks with confidence, bbox and relative size, merges nearby words, and can also read rotated text and non-Latin scripts. |
-| 5 | `find_named_features` | OpenStreetMap | Searches OSM inside a bounding box for features whose name contains a given text, such as a shop or street name found by OCR. Matching ignores case and accents. Returns up to 25 results nearest the box centre. |
-| 6 | `overpass_query` | OpenStreetMap | Runs a custom Overpass QL query inside a bounding box. The size limit depends on how rare the feature is (10–2500 km²) and every filter must use `{{bbox}}`. Returns OSM JSON elements. |
-| 7 | `location_guesser_yfcc` | Geolocation (AI) | General-purpose location estimate for any image. Returns probable regions with a probability, centre, radius and country, plus a localizability rating. |
-| 8 | `location_guesser_osv` | Geolocation (AI) | Location estimate for street-level photos (roads, buildings, signs) using StreetCLIP. Output format is the same as the other guessers. |
-| 9 | `location_guesser_inat` | Geolocation (AI) | Location estimate for nature photos (plants, animals, landscapes). Output format is the same as the other guessers. |
-| 10 | `reverse_search_image` | Web search | Reverse image search on the full image or one region, for landmarks, buildings, logos and signs only, never faces. Uses SerpApi (Google Lens) or Google Cloud Vision, may cost paid credits, and repeated crops are served from cache. |
-| 11 | `verify_candidate_locations` | Verification | Checks candidate coordinates against nearby Mapillary photos: ranks them with MegaLoc, then confirms geometrically with LightGlue and RANSAC. Stops at the first match and needs `MAPILLARY_TOKEN`. |
-| 12 | `compare_images` | Verification | Checks whether two images show the same place using LightGlue and RANSAC geometry only. The verdict is `match`, `similar` or `no_match`. |
-| 13 | `relative_sun_position_from_outdoor_lighting` | Sun analysis | Estimates sun altitude and azimuth relative to the camera from the scene's lighting, using a DINOv2 model. Typical error is about 1.6° for altitude and 5.6° for azimuth. |
-| 14 | `relative_sun_position_from_shadows` | Sun analysis | Estimates sun direction and elevation from object–shadow pairs, with the camera calibrated by GeoCalib. It is precise only when the confidence (`pair_score`) is high. |
-| 15 | `location_from_sun_position` | Sun analysis | Takes a UTC date/time plus sun elevation and azimuth, and returns the possible latitude/longitude (usually two mirror-image solutions). |
-| 16 | `time_from_sun_position` | Sun analysis | Takes a location plus sun elevation and azimuth, and returns the likely UTC dates and times, best match first. |
-| 17 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing. This gives a "photo taken no earlier than" year. |
-| 18 | `inspect_calibration` | Diagnostics | Runs GeoCalib and returns its raw outputs: focal length, field of view, gravity vector, roll and pitch, and their uncertainties. |
+| 1 | `view_image` | Image inspection | Returns the image so the model can describe its visual clues. With `grid=True` it draws a labelled grid on a copy, so you can name cells like `C2`. Give a `cell` or `region` instead to crop that area from the original full-resolution file and read small details such as signs and plates; small crops are upscaled, which adds no new detail. |
+| 2 | `extract_metadata` | Image inspection | Reads EXIF metadata, camera data and GPS from an image URL or a local file path. |
+| 3 | `extract_text` | Text / OCR | Reads text with EasyOCR, either over the whole image or in one cell or region. Returns text blocks with confidence, bbox and relative size, merges nearby words, and can also read rotated text and non-Latin scripts. |
+| 4 | `find_named_features` | OpenStreetMap | Searches OSM inside a bounding box for features whose name contains a given text, such as a shop or street name found by OCR. Matching ignores case and accents. Returns up to 25 results nearest the box centre. |
+| 5 | `overpass_query` | OpenStreetMap | Runs a custom Overpass QL query inside a bounding box. The size limit depends on how rare the feature is (10–2500 km²) and every filter must use `{{bbox}}`. Returns OSM JSON elements. |
+| 6 | `location_guesser` | Geolocation (AI) | Location estimate from the image content. Set `kind` to match the image: `street` for roads, buildings and signs (StreetCLIP), `nature` for plants, animals and landscapes, or `general` for anything else. Returns probable regions with a probability, centre, radius and country, plus a localizability rating. |
+| 7 | `reverse_search_image` | Web search | Reverse image search on the full image or one region, for landmarks, buildings, logos and signs only, never faces. Uses SerpApi (Google Lens) or Google Cloud Vision, may cost paid credits, and repeated crops are served from cache. |
+| 8 | `verify_candidate_locations` | Verification | Checks candidate coordinates against nearby Mapillary photos: ranks them with MegaLoc, then confirms geometrically with LightGlue and RANSAC. Stops at the first match and needs `MAPILLARY_TOKEN`. |
+| 9 | `compare_images` | Verification | Checks whether two images show the same place using LightGlue and RANSAC geometry only. The verdict is `match`, `similar` or `no_match`. |
+| 10 | `relative_sun_position` | Sun analysis | Estimates sun altitude and azimuth relative to the camera. It measures object–shadow pairs against a GeoCalib camera and uses the best pair when its `pair_score` is above 0.8, otherwise it falls back to a DINOv2 lighting model (typical error about 1.6° for altitude and 5.6° for azimuth). `source` says which method answered. |
+| 11 | `location_from_sun_position` | Sun analysis | Takes a UTC date/time plus sun elevation and azimuth, and returns the possible latitude/longitude (usually two mirror-image solutions). |
+| 12 | `time_from_sun_position` | Sun analysis | Takes a location plus sun elevation and azimuth, and returns the likely UTC dates and times, best match first. |
+| 13 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing, giving a "photo taken no earlier than" year, and separately estimates the year the photo itself looks like it was taken from its photographic style. |
+| 14 | `inspect_calibration` | Diagnostics | Runs GeoCalib and returns its raw outputs: focal length, field of view, gravity vector, roll and pitch, and their uncertainties. |
 
 ## License
 
@@ -161,8 +157,9 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) | Sun-position inference as backup to object-shadow pair detection | Independent implementation, see below |
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
-| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser_yfcc` (YFCC), `location_guesser_inat` (iNaturalist) and `location_guesser_osv` (OSV-5M) | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
-| [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser_yfcc` | LGPL; data under GeoNames' CC BY 4.0 |
+| [Blind Dates](https://arxiv.org/abs/2310.06633) (Barancová et al., CHR 2023), [code](https://github.com/CANAL-amsterdam/dating-images) | Photographic-style capture-year estimate in `time_from_objects`; trained here on the [De Boer Scene Detection](https://zenodo.org/record/7137452) corpus plus [DEW](https://doi.org/10.22000/43) images | Method and split from the paper's code · Training images: CC BY 4.0 (De Boer) and per-photo Flickr licences (DEW), neither redistributed · Weights: [`davidlnk3/geotrace-photo-year`](https://huggingface.co/davidlnk3/geotrace-photo-year) |
+| [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser`: YFCC (`kind='general'`), iNaturalist (`kind='nature'`) and OSV-5M (`kind='street'`) | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
+| [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser` | LGPL; data under GeoNames' CC BY 4.0 |
 | [EasyOCR](https://github.com/JaidedAI/EasyOCR) (Jaided AI) | Text detection and recognition for `extract_text` (optional `ocr` extra) | Apache 2.0; models downloaded at first use, not redistributed |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) data via the [Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API) | `overpass_query` and `find_named_features` | Data © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/) |
 | [Mapillary](https://www.mapillary.com) | Street-level reference photos for `verify_candidate_locations`, fetched at run time through the Mapillary API | Imagery: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); API use under the Mapillary terms |
