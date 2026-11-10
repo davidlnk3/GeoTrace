@@ -38,7 +38,7 @@ uvx --python 3.12 --from 'geotrace[all,plonk] @ git+https://github.com/davidlnk3
 | `calibration` | `relative_sun_position` (shadow stage), `inspect_calibration` | GeoCalib and PyTorch |
 | `verification` | `verify_candidate_locations`, `compare_images` | PyTorch, LightGlue and OpenCV |
 | `sun` | `relative_sun_position` (lighting fallback) | PyTorch and transformers. Weights download from [`davidlnk3/geotrace-sun`](https://huggingface.co/davidlnk3/geotrace-sun) on first use |
-| `geoclip` | `time_from_objects` | PyTorch and open_clip. EVA02-CLIP weights download on first use |
+| `geoclip` | `time_from_objects` | PyTorch and open_clip. EVA02-CLIP weights and the [`davidlnk3/geotrace-photo-year`](https://huggingface.co/davidlnk3/geotrace-photo-year) year classifier download on first use |
 | `plonk` | `location_guesser` | PLONK and reverse_geocoder. Needs Python 3.12 or older |
 | `all` | every tool except `location_guesser` | add `plonk` for it: `geotrace[all,plonk]` |
 
@@ -142,7 +142,7 @@ Set them in the harness's `env` block for GeoTrace, then restart the harness or 
 | 10 | `relative_sun_position` | Sun analysis | Estimates sun altitude and azimuth relative to the camera. It measures object–shadow pairs against a GeoCalib camera and uses the best pair when its `pair_score` is above 0.8, otherwise it falls back to a DINOv2 lighting model (typical error about 1.6° for altitude and 5.6° for azimuth). `source` says which method answered. |
 | 11 | `location_from_sun_position` | Sun analysis | Takes a UTC date/time plus sun elevation and azimuth, and returns the possible latitude/longitude (usually two mirror-image solutions). |
 | 12 | `time_from_sun_position` | Sun analysis | Takes a location plus sun elevation and azimuth, and returns the likely UTC dates and times, best match first. |
-| 13 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing. This gives a "photo taken no earlier than" year. |
+| 13 | `time_from_objects` | Dating | Estimates when each named object was built using EVA02-CLIP time probing, giving a "photo taken no earlier than" year, and separately estimates the year the photo itself looks like it was taken from its photographic style. |
 | 14 | `inspect_calibration` | Diagnostics | Runs GeoCalib and returns its raw outputs: focal length, field of view, gravity vector, roll and pitch, and their uncertainties. |
 
 ## License
@@ -157,6 +157,7 @@ GeoTrace is licensed under MIT License. See LICENSE.
 | [GeoCalib](https://github.com/cvg/GeoCalib) | Camera calibration (gravity direction and focal length) to correct perspective in shadow measurements | Code: Apache 2.0 · Model weights: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [All-Weather Deep Outdoor Lighting Estimation](https://openaccess.thecvf.com/content_CVPR_2019/html/Zhang_All-Weather_Deep_Outdoor_Lighting_Estimation_CVPR_2019_paper.html) | Sun-position inference as backup to object-shadow pair detection | Independent implementation, see below |
 | [A Matter of Time](https://arxiv.org/abs/2510.19559) (Tekaya et al., 2025) and [EVA02-CLIP](https://github.com/baaivision/EVA) via [open_clip](https://github.com/mlfoundations/open_clip) | Time probing for `time_from_objects` | Method from the paper; weights downloaded at first use, not redistributed |
+| [Blind Dates](https://arxiv.org/abs/2310.06633) (Barancová et al., CHR 2023), [code](https://github.com/CANAL-amsterdam/dating-images) | Photographic-style capture-year estimate in `time_from_objects`; trained here on the [De Boer Scene Detection](https://zenodo.org/record/7137452) corpus plus [DEW](https://doi.org/10.22000/43) images | Method and split from the paper's code · Training images: CC BY 4.0 (De Boer) and per-photo Flickr licences (DEW), neither redistributed · Weights: [`davidlnk3/geotrace-photo-year`](https://huggingface.co/davidlnk3/geotrace-photo-year) |
 | [PLONK](https://arxiv.org/abs/2412.06781), [code](https://github.com/nicolas-dufour/plonk) | Regions and probabilities for `location_guesser`: YFCC (`kind='general'`), iNaturalist (`kind='nature'`) and OSV-5M (`kind='street'`) | Code: MIT · Weights: downloaded at first use from Hugging Face, not redistributed; check the model card licence |
 | [reverse_geocoder](https://github.com/thampiman/reverse-geocoder) (GeoNames data) | Nearest place name, admin region and country code for `location_guesser` | LGPL; data under GeoNames' CC BY 4.0 |
 | [EasyOCR](https://github.com/JaidedAI/EasyOCR) (Jaided AI) | Text detection and recognition for `extract_text` (optional `ocr` extra) | Apache 2.0; models downloaded at first use, not redistributed |
