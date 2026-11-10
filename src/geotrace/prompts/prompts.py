@@ -177,8 +177,8 @@ CHRONO_STRATEGIES = """\
 - **Sun geometry:** measure the sun (`relative_sun_position_from_shadows` when there are clear
   object-shadow pairs, otherwise `relative_sun_position_from_outdoor_lighting`), convert to absolute
   azimuth with the camera heading, then `time_from_sun_position` at the known place.
-- **Year bounds:** list the datable objects (vehicles, phones, signage styles, buildings) and call
-  `time_from_objects` once: the photo cannot be older than its newest object.
+- **Year bounds:** make a summary about the fashion and list the datable objects (vehicles, phones, signage 
+  styles, buildings) and call `time_from_objects` once: the photo cannot be older than its newest object.
 - **Season and conditions:** vegetation (bare trees, blossom, autumn colours), snow, clothing,
   light. They choose between the two mirror date windows of the sun solution.
 - **Events and text:** posters, dates, prices, shop names that opened or closed; OCR them and

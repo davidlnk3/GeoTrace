@@ -8,3 +8,7 @@ src/geotrace/core/__pycache__
 src/geotrace/tools/__pycache__
 .claude/worktrees
 .github/workflows
+ARCHITECTURE.md
+CLAUDE.md
+DECISIONS.md
+PROGRESS.md
