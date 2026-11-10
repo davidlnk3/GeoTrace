@@ -53,10 +53,12 @@ sun = [
     "torch",
     "transformers",
 ]
-# EVA02-CLIP time probing for time_from_objects (core/time_objects.py). Weights download on first use.
+# Dating for time_from_objects: EVA02-CLIP time probing (core/time_objects.py) and the
+# photographic-style year classifier (core/photo_dating.py). Weights download on first use.
 geoclip = [
     "torch",
     "open_clip_torch",
+    "safetensors",
 ]
 # PLONK for the location_guesser tool (core/plonk_location.py, core/location_regions.py).
 # diff-plonk pins scipy==1.13.1, which has no wheels for the newest Python, so it is left out of `all`.
