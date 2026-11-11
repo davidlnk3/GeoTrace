@@ -786,6 +786,7 @@ calibration = [
 ]
 geoclip = [
     { name = "open-clip-torch" },
+    { name = "safetensors" },
     { name = "torch" },
 ]
 ocr = [
@@ -843,6 +844,7 @@ requires-dist = [
     { name = "platformdirs", marker = "extra == 'verification'" },
     { name = "pydantic", specifier = ">=2.14.1" },
     { name = "reverse-geocoder", marker = "extra == 'plonk'" },
+    { name = "safetensors", marker = "extra == 'geoclip'" },
     { name = "safetensors", marker = "extra == 'verification'" },
     { name = "torch", marker = "extra == 'calibration'" },
     { name = "torch", marker = "extra == 'geoclip'" },
