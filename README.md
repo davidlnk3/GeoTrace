@@ -34,9 +34,9 @@ uvx --python 3.12 --from 'geotrace[all,plonk] @ git+https://github.com/davidlnk3
 | Extra | Tools | Notes |
 |-------|-------|-------|
 | `ocr` | `extract_text` | EasyOCR models download to `~/.EasyOCR/` on first use |
-| `reverse-search` | `reverse_search_image` | OpenCV, for the face check |
+| `reverse-search` | `reverse_search_image` | OpenCV, for the face check. (Requires SerpApi API key which has 1000 free searches per month) |
 | `calibration` | `relative_sun_position` (shadow stage), `inspect_calibration` | GeoCalib and PyTorch |
-| `verification` | `verify_candidate_locations`, `compare_images` | PyTorch, LightGlue and OpenCV |
+| `verification` | `verify_candidate_locations`, `compare_images` | PyTorch, LightGlue and OpenCV. (Requires Mapillary API key but is free) |
 | `sun` | `relative_sun_position` (lighting fallback) | PyTorch and transformers. Weights download from [`davidlnk3/geotrace-sun`](https://huggingface.co/davidlnk3/geotrace-sun) on first use |
 | `geoclip` | `time_from_objects` | PyTorch and open_clip. EVA02-CLIP weights and the [`davidlnk3/geotrace-photo-year`](https://huggingface.co/davidlnk3/geotrace-photo-year) year classifier download on first use |
 | `plonk` | `location_guesser` | PLONK and reverse_geocoder. Needs Python 3.12 or older |
