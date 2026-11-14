@@ -1,5 +1,6 @@
 from mcp.server.mcpserver import Context
 from geotrace.server import mcp
+from geotrace.core.dating_clues import row_embeddings_cached
 from geotrace.core.images import load_image
 from geotrace.core.photo_dating import estimate_capture_year
 from geotrace.core.time_objects import time_from_objects as estimate_intervals
@@ -11,20 +12,33 @@ from typing import Annotated
 
 @mcp.tool(
     name="time_from_objects",
-    description="Dates a photo in two independent ways. First, the interval in which each named "
+    description="Dates a photo in three independent ways. First, the interval in which each named "
     "object was built, from its likely build year until today, using EVA02-CLIP time probing "
     "(arXiv:2510.19559): the photo cannot be older than the most recent object in it. Second, the "
     "year the photo itself looks like it was taken, from photographic style, using a logistic year "
-    "classifier over OpenCLIP embeddings (arXiv:2310.06633). "
+    "classifier over OpenCLIP embeddings (arXiv:2310.06633). Third, a lookup of a curated table of "
+    "clothing and objects with known dates, 1970 to 2026, searched by meaning rather than by "
+    "wording, so 'wireless earbuds' finds 'AirPods wireless earbuds'. "
     "objects is required: list the objects to date, for example after looking at the image. "
+    "Give the object names in English, which the models understand best. "
     "Returns current_year, image_taken_not_before_year (the latest built_from_year), for each "
     "object built_from_year (the estimated build year minus the paper's accuracy tolerance, "
     "5 to 20 years), built_until_year (today) and tolerance_years, and capture_year_estimate with "
     "estimated_year, expected_year, interval_80pct, confidence and model_year_range. "
-    "The two signals are independent: the objects give a lower bound, the style estimate gives a "
-    "likely era. Read capture_year_estimate with care, because that classifier can only answer "
-    "within its trained year range and will do so even for a photo from outside it. "
-    "The estimates are approximate and apply to human-made objects.",
+    "dating_clues holds the table lookup: matches, the rows that mean the same as each name you "
+    "passed, each with item, appears, peak, clue_type, not_before_year, similarity and confident; "
+    "image_suggestions, table items the image itself resembles; and table_not_before_year, the "
+    "latest not_before_year over the confident matches only. "
+    "A strong clue gives a real 'not before' year; a weak one only suggests an era. Fashion is "
+    "regional and cyclical and the table is approximate, so a weak clue is never proof. "
+    "image_suggestions are unverified hints: confirm each one by looking at the image, for example "
+    "with view_image and a crop, and never treat them as evidence on their own. "
+    "The three signals are independent and must not be averaged: the objects and the table give "
+    "lower bounds, the style estimate gives a likely era. Read capture_year_estimate with care, "
+    "because that classifier can only answer within its trained year range and will do so even for "
+    "a photo from outside it. The estimates are approximate and apply to human-made objects. "
+    "Use clothing only to date the scene, never to identify, profile or describe the people "
+    "wearing it.",
 )
 async def time_from_objects(
     image: Annotated[str, Field(description="URL or path of the image.")],
@@ -37,8 +51,31 @@ async def time_from_objects(
 ) -> dict:
     await ctx.info("Estimating build-time intervals for the objects in the image")
     data = await load_image(image)
+
+    # Embedding the ~170 table rows takes a while on CPU, but only the first time: after that
+    # they are read from the cache on disk.
+    try:
+        if not row_embeddings_cached():
+            await ctx.info("Embedding the dating-clues table for the first time; this can take "
+                           "a minute on CPU, after which it is cached")
+    except Exception as exc:  # noqa: BLE001 - only a progress message; the lookup reports failures
+        await ctx.info(f"Could not check the dating-clues table ({exc})")
+
     result = await asyncio.to_thread(estimate_intervals, data, objects)
     await ctx.info(f"Image taken not before {result['image_taken_not_before_year']}")
+
+    if "dating_clues_error" in result:
+        await ctx.info(f"The dating-clues table could not be searched "
+                       f"({result['dating_clues_error']}); returning the other signals")
+    else:
+        clues = result["dating_clues"]
+        matched = sum(len(ms) for ms in clues["matches"].values())
+        table_year = clues["table_not_before_year"]
+        await ctx.info(
+            f"Dating-clues table: {matched} row(s) matched the objects you named, "
+            f"{len(clues['image_suggestions'])} suggestion(s) from the image itself"
+            + (f", not before {table_year} from the confident matches" if table_year else "")
+        )
 
     await ctx.info("Estimating when the photo was taken from its photographic style")
     try:

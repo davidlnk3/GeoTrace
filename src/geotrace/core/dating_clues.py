@@ -19,6 +19,7 @@ import re
 from dataclasses import asdict, dataclass
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 from geotrace.core.time_objects import (
     MODEL_NAME,
@@ -57,7 +58,8 @@ _YEAR_RE = re.compile(r"\b(1[89]\d{2}|20\d{2})\b")
 _QUOTE_RE = re.compile(r'"([^"]+)"')
 _STRENGTHS = ("medium-strong", "strong", "medium", "weak")
 
-_MEMORY_CACHE: dict[str, object] = {}
+# numpy is imported lazily, as everywhere else in core, so the arrays stay untyped here.
+_MEMORY_CACHE: dict[str, Any] = {}
 
 
 class ClueTableError(ValueError):
@@ -257,7 +259,7 @@ def row_embeddings_cached(text: str | None = None) -> bool:
     return path is not None and path.is_file()
 
 
-def row_embeddings(rows: list[ClueRow], text: str):
+def row_embeddings(rows: list[ClueRow], text: str) -> Any:
     """The normalised embedding of every row, from the cache when it is there."""
     import numpy as np
 
@@ -287,7 +289,7 @@ def row_embeddings(rows: list[ClueRow], text: str):
     return emb
 
 
-def _as_array(embedding):
+def _as_array(embedding) -> Any:
     """A float32 numpy view of a torch tensor or an array."""
     import numpy as np
 
@@ -296,7 +298,7 @@ def _as_array(embedding):
     return np.asarray(embedding, dtype=np.float32)
 
 
-def _table():
+def _table() -> tuple[list[ClueRow], Any]:
     text = table_text()
     rows = parse_table(text)
     return rows, row_embeddings(rows, text)
