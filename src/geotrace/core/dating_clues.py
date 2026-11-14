@@ -1,6 +1,6 @@
 """Semantic lookup of a curated table of clothing and objects with known dates.
 
-The table (data/fashion_clues_1970_2026.md) lists about 170 items with the year each one
+The table (geotrace/data/fashion_clues.md) lists about 170 items with the year each one
 appears, the years it peaks, and how strong a dating clue it is. Rows are matched by
 meaning rather than by string, so "clamshell phone" finds "Motorola RAZR flip phone":
 every row is embedded once with the EVA02-CLIP model that core.time_objects already
@@ -29,7 +29,6 @@ from geotrace.core.time_objects import (
 )
 
 TABLE_FILE = "fashion_clues.md"
-REPO_TABLE = "fashion_clues_1970_2026.md"
 
 ROW_TEMPLATE = "A photo of {item}."
 BATCH = 64
@@ -212,17 +211,12 @@ def parse_table(text: str) -> list[ClueRow]:
 
 
 def table_path() -> Path:
-    """The table file, inside the installed package if it is there, else in the repo."""
+    """The table file, read through importlib so it works installed as well as from the repo."""
     packaged = resources.files("geotrace") / "data" / TABLE_FILE
-    if packaged.is_file():
-        return Path(str(packaged))
-    repo = Path(__file__).resolve().parents[3] / "data" / REPO_TABLE
-    if repo.is_file():
-        return repo
-    raise FileNotFoundError(
-        f"the dating-clues table was not found, neither packaged as geotrace/data/{TABLE_FILE} "
-        f"nor in the repository as data/{REPO_TABLE}"
-    )
+    if not packaged.is_file():
+        raise FileNotFoundError(f"the dating-clues table is missing from the package: "
+                                f"geotrace/data/{TABLE_FILE}")
+    return Path(str(packaged))
 
 
 def table_text() -> str:
