@@ -6,10 +6,18 @@ meaning rather than by string, so "clamshell phone" finds "Motorola RAZR flip ph
 every row is embedded once with the EVA02-CLIP model that core.time_objects already
 loads, and a query is matched by cosine similarity.
 
+CLIP text embeddings are hubs: a few rows ("Quiet luxury", "Velvet") are the nearest
+neighbour of almost any query, so a plain cosine ranks "cathedral" above a real match.
+Two corrections are applied. The row mean is subtracted from every row and every query
+before renormalising, which removes the shared direction; and each row carries the mean
+and standard deviation of its similarity to a fixed set of unrelated background queries,
+so a match is scored as z = (similarity - row mean) / row standard deviation. A hub row
+has a high background mean and is penalised accordingly.
+
 Two independent queries are offered. match_objects compares the names the model says it
-saw with the rows: a confident match gives a "not before" year for the photo.
-suggest_from_image compares the image itself with the rows, which only ever yields
-hints to check by looking at the image, never evidence.
+saw with the rows: a match that also shares a word with the row is marked confident and
+can give a "not before" year for the photo. suggest_from_image compares the image itself
+with the rows, which only ever yields hints to check by looking at the image.
 
 The table is a curated, approximate reference. Fashion is regional and cyclical, and the
 rows for 1970-2019 were compiled without per-row sources.
@@ -33,22 +41,39 @@ TABLE_FILE = "fashion_clues.md"
 ROW_TEMPLATE = "A photo of {item}."
 BATCH = 64
 
-# Calibrated against the real table with EVA02-L-14-336. CLIP text-text similarity is high even
-# for unrelated pairs: a handful of generic rows ("Quiet luxury", "Velvet", "Hot pants") are the
-# nearest row for any query, so "cathedral" scores 0.757 and "bicycle" 0.729 against them. Real
-# matches have to clear that noise floor, hence a threshold far above zero: 0.78 drops every
-# unrelated probe, while keeping "airpods" (0.952), "crocs" (1.000), "fidget spinner" (0.918),
-# "skinny jeans" (0.908), "velour tracksuit" (0.833) and "football shirt" (0.831). The cost is
-# that a terse query can fall just short, as "flip phone" does at 0.735 against "Motorola RAZR
-# flip phone"; returning nothing is the safer error for a tool that dates evidence.
-TEXT_MATCH_THRESHOLD = 0.78
-# Image-text similarity lives in a much narrower band: over six probe photos every row scored
-# between -0.02 and 0.205, with the 99th percentile at 0.164. 0.18 sits above that noise, so
-# photos with no clothing in them (a coffee cup, gravel, a camera) yield no hints at all.
+# Unrelated queries that stand for "an ordinary photographic subject". Every row's similarity
+# to these gives it a baseline, which is what turns a raw cosine into a z-score. They are part
+# of the cache key, so editing this list recomputes the statistics.
+BACKGROUND_QUERIES = (
+    "a cathedral", "the Eiffel Tower", "a suburban house", "a shopping mall",
+    "a railway station", "a lighthouse",
+    "a dog", "a horse", "a seagull", "a cat sleeping", "a cow in a field",
+    "a bicycle", "a city bus", "a parked car", "a cargo ship", "an aeroplane", "a tractor",
+    "a mountain range", "a pine forest", "a sandy beach", "a river at dusk",
+    "a field of wheat", "storm clouds",
+    "a bowl of soup", "a loaf of bread", "a plate of pasta", "an apple",
+    "a cup of coffee", "a birthday cake",
+    "a traffic light", "a fire hydrant", "a park bench", "a brick wall",
+)
+
+# Calibrated on the real table with EVA02-L-14-336, scoring on z after centring. Measured on
+# 25 held-out unrelated queries (none of them in BACKGROUND_QUERIES) and 15 real object names:
+# the unrelated queries peak at z = 9.9 and the genuine matches start at z = 5.9, so the two
+# still overlap and z alone cannot decide. z therefore only decides what is worth returning,
+# and a shared word decides what is trustworthy (see _shares_words).
+Z_MATCH_THRESHOLD = 5.0
+# Image-text similarity is a different modality on a different scale, so the text background
+# statistics do not transfer and centring measurably did not help: over six probe photos the
+# centred maximum for gravel (+0.122) matched a real street scene (+0.123). The image path
+# therefore stays on the plain cosine against the uncentred rows, where every row scored
+# between -0.02 and 0.205 with the 99th percentile at 0.164.
 IMAGE_SUGGESTION_THRESHOLD = 0.18
-# How far the best row must beat the runner-up for a text match to count as confident. Unrelated
-# queries land on a cluster of near-equal generic rows, so a tie is itself a sign of a bad match.
-TEXT_MATCH_MARGIN = 0.02
+
+# Filler words that must never, on their own, make a match look confirmed.
+_STOP_WORDS = frozenset({
+    "and", "the", "with", "worn", "style", "first", "wave", "dominant", "cut",
+    "everywhere", "its", "for", "as", "in", "on", "to", "or", "a", "an", "of",
+})
 
 _DECADE_OFFSET = {"early": 0, "mid": 4, "late": 7}
 _DECADE_RE = re.compile(r"(early|mid|late)[-\s]+(\d{3})0s", re.IGNORECASE)
@@ -82,19 +107,25 @@ class ClueRow:
 
 @dataclass(frozen=True)
 class ClueMatch:
-    """One row returned by a search, with its similarity to the query."""
+    """One row returned by a search, with how well it scored.
+
+    `similarity` is the plain cosine, kept because it is the number a human recognises.
+    `z` is what the thresholds act on: how far above its own background baseline the row
+    scored, in standard deviations. It is None for image suggestions, which are not
+    scored against the text background. `confident` means the match is safe to date with.
+    """
 
     row: ClueRow
     similarity: float
+    z: float | None
     confident: bool
 
     def to_dict(self) -> dict:
         out = asdict(self.row)
-        out.pop("appears_year")
-        out.pop("peak_from")
-        out.pop("peak_to")
-        out.pop("strength")
+        for numeric in ("appears_year", "peak_from", "peak_to", "strength"):
+            out.pop(numeric)
         out["similarity"] = self.similarity
+        out["z"] = self.z
         out["confident"] = self.confident
         return out
 
@@ -223,14 +254,13 @@ def table_text() -> str:
     return table_path().read_text(encoding="utf-8")
 
 
-def cache_key(text: str, model_name: str = MODEL_NAME, pretrained: str = PRETRAINED) -> str:
-    """A digest of the table and the model, so either one changing invalidates the cache."""
+def cache_key(text: str, model_name: str = MODEL_NAME, pretrained: str = PRETRAINED,
+              background: tuple[str, ...] = BACKGROUND_QUERIES) -> str:
+    """A digest of everything the cached arrays depend on: table, model and background set."""
     h = hashlib.sha256()
-    h.update(text.encode("utf-8"))
-    h.update(b"\0")
-    h.update(model_name.encode("utf-8"))
-    h.update(b"\0")
-    h.update(pretrained.encode("utf-8"))
+    for part in (text, model_name, pretrained, "\n".join(background)):
+        h.update(part.encode("utf-8"))
+        h.update(b"\0")
     return h.hexdigest()[:16]
 
 
@@ -241,7 +271,7 @@ def _cache_file(key: str) -> Path | None:
     except ImportError:
         # platformdirs is not a dependency of the geoclip extra, so fall back to memory only.
         return None
-    return Path(user_cache_dir("geotrace")) / f"dating_clues_{key}.npy"
+    return Path(user_cache_dir("geotrace")) / f"dating_clues_{key}.npz"
 
 
 def row_embeddings_cached(text: str | None = None) -> bool:
@@ -253,8 +283,50 @@ def row_embeddings_cached(text: str | None = None) -> bool:
     return path is not None and path.is_file()
 
 
-def row_embeddings(rows: list[ClueRow], text: str) -> Any:
-    """The normalised embedding of every row, from the cache when it is there."""
+def _unitise(vectors) -> Any:
+    """Scale each row vector to unit length, so a dot product is a cosine."""
+    import numpy as np
+
+    norms = np.linalg.norm(vectors, axis=-1, keepdims=True)
+    return vectors / np.maximum(norms, 1e-12)
+
+
+def _embed_rows(texts: list[str]) -> Any:
+    """Embed `texts` through the row template, in batches, as float32."""
+    import numpy as np
+
+    model, _, tokenizer = _load()
+    chunks = []
+    for start in range(0, len(texts), BATCH):
+        batch = [ROW_TEMPLATE.format(item=t) for t in texts[start:start + BATCH]]
+        chunks.append(_as_array(_embed_text(model, tokenizer, batch)))
+    return np.concatenate(chunks).astype(np.float32)
+
+
+def build_index(rows: list[ClueRow]) -> dict:
+    """Embed the rows and measure each one against the background queries.
+
+    Returns the raw embeddings (for the image path), the centred ones and the row mean
+    (for the text path), and each row's background mean and standard deviation.
+    """
+    raw = _embed_rows([r.item for r in rows])
+    mean_row = raw.mean(axis=0)
+    centred = _unitise(raw - mean_row)
+
+    background = _unitise(_embed_rows(list(BACKGROUND_QUERIES)) - mean_row)
+    background_sims = centred @ background.T          # (rows, background queries)
+    return {
+        "raw": raw,
+        "centred": centred,
+        "mean_row": mean_row,
+        "background_mean": background_sims.mean(axis=1),
+        # Guard the divisor: a row with no spread would otherwise give an infinite z.
+        "background_std": background_sims.std(axis=1).clip(min=1e-6),
+    }
+
+
+def row_embeddings(rows: list[ClueRow], text: str) -> dict:
+    """The index for these rows, from the cache when it is there."""
     import numpy as np
 
     key = cache_key(text)
@@ -264,23 +336,18 @@ def row_embeddings(rows: list[ClueRow], text: str) -> Any:
 
     path = _cache_file(key)
     if path is not None and path.is_file():
-        emb = np.load(path)
-        if emb.shape[0] == len(rows):
-            _MEMORY_CACHE[key] = emb
-            return emb
+        with np.load(path) as stored:
+            index = {k: stored[k] for k in stored.files}
+        if index["raw"].shape[0] == len(rows):
+            _MEMORY_CACHE[key] = index
+            return index
 
-    model, _, tokenizer = _load()
-    chunks = []
-    for start in range(0, len(rows), BATCH):
-        texts = [ROW_TEMPLATE.format(item=r.item) for r in rows[start:start + BATCH]]
-        chunks.append(_embed_text(model, tokenizer, texts).detach().cpu().numpy())
-    emb = np.concatenate(chunks).astype(np.float32)
-
+    index = build_index(rows)
     if path is not None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(path, emb)
-    _MEMORY_CACHE[key] = emb
-    return emb
+        np.savez(path, **index)
+    _MEMORY_CACHE[key] = index
+    return index
 
 
 def _as_array(embedding) -> Any:
@@ -292,7 +359,27 @@ def _as_array(embedding) -> Any:
     return np.asarray(embedding, dtype=np.float32)
 
 
-def _table() -> tuple[list[ClueRow], Any]:
+def _words(text: str) -> set[str]:
+    """The content words of a name, lowercased and crudely de-pluralised."""
+    out = set()
+    for word in "".join(c.lower() if c.isalnum() else " " for c in text).split():
+        if len(word) < 3 or word in _STOP_WORDS:
+            continue
+        out.add(word[:-1] if word.endswith("s") and len(word) > 4 else word)
+    return out
+
+
+def _shares_words(query: str, item: str) -> bool:
+    """Whether a query and a row name have a content word in common.
+
+    This is what separates a real match from a plausible-looking one. Centring and the
+    z-score fix the ranking, but they cannot tell "a crocodile" (z 9.9 against "Classic
+    Crocs") from "labubu" (z 5.9 against the row that names it); a shared word can.
+    """
+    return bool(_words(query) & _words(item))
+
+
+def _table() -> tuple[list[ClueRow], dict]:
     text = table_text()
     rows = parse_table(text)
     return rows, row_embeddings(rows, text)
@@ -301,44 +388,51 @@ def _table() -> tuple[list[ClueRow], Any]:
 def match_objects(names: list[str], top_k: int = 3) -> dict[str, list[ClueMatch]]:
     """The table rows that mean the same as each name, best first.
 
-    Only rows above TEXT_MATCH_THRESHOLD are returned, so "no match" comes back as an empty
-    list rather than the best weak guess. Only the top row can be `confident`, and only when
-    it beats the runner-up by TEXT_MATCH_MARGIN: a tie between rows means the query was
-    ambiguous, so it must not be read as a dated fact.
+    Rows are ranked by z, not by raw similarity, so hub rows do not win by default. Only
+    rows at or above Z_MATCH_THRESHOLD come back, so "no match" is an empty list rather
+    than the best weak guess. A row is `confident` only if it also shares a word with the
+    name: a purely semantic neighbour is returned as a candidate to check, never as a fact.
     """
     import numpy as np
 
-    rows, emb = _table()
+    rows, index = _table()
     model, _, tokenizer = _load()
-    queries = _embed_text(model, tokenizer, [ROW_TEMPLATE.format(item=n) for n in names])
-    sims = _as_array(queries).reshape(len(names), -1) @ emb.T
+    queries = _as_array(_embed_text(
+        model, tokenizer, [ROW_TEMPLATE.format(item=n) for n in names]))
+
+    cosine = queries @ index["raw"].T
+    centred = _unitise(queries - index["mean_row"])
+    z = (centred @ index["centred"].T - index["background_mean"]) / index["background_std"]
 
     out: dict[str, list[ClueMatch]] = {}
     for i, name in enumerate(names):
-        order = np.argsort(-sims[i])
-        best = float(sims[i][order[0]])
-        runner_up = float(sims[i][order[1]]) if len(order) > 1 else -1.0
-        confident = best - runner_up >= TEXT_MATCH_MARGIN
         matches = []
-        for rank, j in enumerate(order[:top_k]):
-            score = float(sims[i][j])
-            if score < TEXT_MATCH_THRESHOLD:
+        for j in np.argsort(-z[i])[:top_k]:
+            if z[i][j] < Z_MATCH_THRESHOLD:
                 break
-            matches.append(ClueMatch(rows[j], round(score, 4), rank == 0 and confident))
+            matches.append(ClueMatch(
+                row=rows[j],
+                similarity=round(float(cosine[i][j]), 4),
+                z=round(float(z[i][j]), 2),
+                confident=_shares_words(name, rows[j].item),
+            ))
         out[name] = matches
     return out
 
 
 def suggest_from_image(image_embedding, top_k: int = 5) -> list[ClueMatch]:
-    """Table items that may be visible in the photo. Unverified hints, never evidence."""
+    """Table items that may be visible in the photo. Unverified hints, never evidence.
+
+    Scored on the plain cosine against the uncentred rows: the text background statistics
+    belong to another modality, so there is no z to report here.
+    """
     import numpy as np
 
-    rows, emb = _table()
-    sims = emb @ _as_array(image_embedding).reshape(-1)
-    order = np.argsort(-sims)
+    rows, index = _table()
+    sims = index["raw"] @ _unitise(_as_array(image_embedding).reshape(-1))
     return [
-        ClueMatch(rows[j], round(float(sims[j]), 4), False)
-        for j in order[:top_k]
+        ClueMatch(row=rows[j], similarity=round(float(sims[j]), 4), z=None, confident=False)
+        for j in np.argsort(-sims)[:top_k]
         if float(sims[j]) >= IMAGE_SUGGESTION_THRESHOLD
     ]
 

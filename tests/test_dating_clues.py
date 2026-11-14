@@ -165,31 +165,155 @@ def test_cache_key_is_stable():
     assert dc.cache_key("| A | 2010 | 2011 | Weak |") == dc.cache_key("| A | 2010 | 2011 | Weak |")
 
 
-# --- the search, on fake embeddings --------------------------------------------
+# --- centring and the background statistics ------------------------------------------------
+
+def test_cache_key_changes_with_the_background_queries():
+    text = "| A | 2010 | 2011 | Weak |"
+    assert dc.cache_key(text, background=("a dog",)) != dc.cache_key(text, background=("a cat",))
+
+
+@pytest.fixture
+def stub_embeddings(monkeypatch):
+    """Replace the model with a lookup table from text to a chosen vector."""
+    def use(vectors: dict[str, list[float]]):
+        def _embed_rows(texts):
+            return np.asarray([vectors[t] for t in texts], dtype=np.float32)
+        monkeypatch.setattr(dc, "_embed_rows", _embed_rows)
+
+    return use
+
+
+def test_centring_removes_the_row_mean_and_renormalises(stub_embeddings):
+    rows = dc.parse_table(table(
+        "| A | 2010 | 2011 | Weak |",
+        "| B | 2010 | 2011 | Weak |",
+    ))
+    # Both rows share a large component on axis 0: that shared direction is the hub.
+    stub_embeddings({"A": [1.0, 0.2, 0.0], "B": [1.0, 0.0, 0.2],
+                     **{b: [1.0, 0.0, 0.0] for b in dc.BACKGROUND_QUERIES}})
+    index = dc.build_index(rows)
+
+    assert index["raw"].shape == (2, 3)
+    # The mean row is the shared direction, and centring takes it out.
+    assert index["mean_row"] == pytest.approx([1.0, 0.1, 0.1])
+    assert np.linalg.norm(index["centred"], axis=1) == pytest.approx([1.0, 1.0])
+    assert index["centred"].mean(axis=0) == pytest.approx([0.0, 0.0, 0.0], abs=1e-6)
+
+
+def test_background_statistics_are_measured_per_row(stub_embeddings):
+    rows = dc.parse_table(table(
+        "| Hub | 2010 | 2011 | Weak |",
+        "| Specific | 2010 | 2011 | Weak |",
+    ))
+    # The background queries all sit on the Hub row's side of the centred space.
+    stub_embeddings({"Hub": [1.0, 0.0], "Specific": [0.0, 1.0],
+                     **{b: [1.0, 0.0] for b in dc.BACKGROUND_QUERIES}})
+    index = dc.build_index(rows)
+
+    hub, specific = index["background_mean"]
+    assert hub > 0 > specific               # the hub row looks like everything
+    assert index["background_std"].min() > 0  # never zero, so z stays finite
+
+
+def test_a_hub_row_needs_a_higher_cosine_to_reach_the_same_z(stub_embeddings):
+    """The whole point of the z-score: being everyone's neighbour stops being an advantage."""
+    rows = dc.parse_table(table(
+        "| Hub | 2010 | 2011 | Weak |",
+        "| Specific | 2010 | 2011 | Weak |",
+    ))
+    stub_embeddings({"Hub": [1.0, 0.0], "Specific": [0.0, 1.0],
+                     **{b: [0.98, 0.2] for b in dc.BACKGROUND_QUERIES}})
+    index = dc.build_index(rows)
+    assert index["background_mean"][0] > index["background_mean"][1]
+
+
+def test_queries_are_centred_and_renormalised(monkeypatch):
+    """A query goes through the same centring as the rows before it is scored."""
+    rows = dc.parse_table(table("| A | 2010 | 2011 | Weak |"))
+    index = {
+        "raw": np.asarray([[1.0, 0.0]], dtype=np.float32),
+        "centred": np.asarray([[1.0, 0.0]], dtype=np.float32),
+        "mean_row": np.asarray([0.0, 0.6], dtype=np.float32),
+        "background_mean": np.zeros(1, dtype=np.float32),
+        "background_std": np.ones(1, dtype=np.float32),
+    }
+    monkeypatch.setattr(dc, "table_text", lambda: table("| A | 2010 | 2011 | Weak |"))
+    monkeypatch.setattr(dc, "row_embeddings", lambda r, t: index)
+    monkeypatch.setattr(dc, "_load", lambda: (None, None, None))
+    monkeypatch.setattr(dc, "_MEMORY_CACHE", {})
+    monkeypatch.setattr(dc, "Z_MATCH_THRESHOLD", 0.0)
+    # The query is (0.6, 0.6); the mean row leaves (0.6, 0.0), which renormalises to (1, 0).
+    monkeypatch.setattr(dc, "_embed_text",
+                        lambda m, t, texts: np.asarray([[0.6, 0.6]], dtype=np.float32))
+
+    match = dc.match_objects(["A"], top_k=1)["A"][0]
+    assert match.z == pytest.approx(1.0)          # centred and renormalised, not 0.6
+    assert match.similarity == pytest.approx(0.6)  # the plain cosine is reported as-is
+    assert len(rows) == 1
+
+
+# --- the lexical gate ----------------------------------------------------------------------
+
+@pytest.mark.parametrize("query,item,shared", [
+    ("flip phone", "Motorola RAZR flip phone", True),
+    ("airpods", "AirPods wireless earbuds", True),          # case is ignored
+    ("velour tracksuit", "Velour tracksuits (Juicy Couture style)", True),   # plural
+    ("football shirt", "Retro football shirts as fashion", True),
+    ("labubu", "Labubu plush toys on bags", True),
+    ("crocs", "Classic Crocs", True),
+    ("a crocodile", "Classic Crocs", False),                # the z-score's worst false match
+    ("cathedral", "Quiet luxury", False),
+    ("wireless earbuds", "Bluetooth earpieces", False),
+    # A shared filler word must never count as agreement.
+    ("a photo worn with the style", "Overalls worn with one strap down", False),
+])
+def test_shares_words(query, item, shared):
+    assert dc._shares_words(query, item) is shared
+
+
+def test_words_drops_filler_and_short_tokens():
+    assert dc._words("Bell-bottom jeans and trousers") == {"bell", "bottom", "jean", "trouser"}
+
+
+# --- the search, on fake embeddings --------------------------------------------------------
 
 ROWS = table(
     '| Motorola RAZR flip phone | Late 2004 | 2005–2007 | Strong ("not before late 2004") |',
     '| AirPods wireless earbuds | December 2016 | 2018 onwards | Strong ("not before late 2016") |',
     "| Bell-bottom jeans | Late 1960s | 1970–1976 | Weak |",
 )
-# The three rows are embedded on the three unit axes, so a query vector IS its own list of
-# similarities, one per row. That keeps the thresholds readable: real CLIP rows are far from
-# orthogonal, but what the search sees is only the similarity, which these tests set directly.
 AXES = np.eye(3, dtype=np.float32)
 
 
 def sims(*values: float) -> np.ndarray:
-    """A query whose similarity to the three rows is exactly `values`."""
+    """A unit query whose cosine to the three rows is exactly `values`."""
     return np.asarray(values, dtype=np.float32)
 
 
 @pytest.fixture
 def fake_table(monkeypatch):
-    """The three rows above, searched without loading any model."""
+    """The three rows above on three unit axes, with neutral background statistics.
+
+    With background mean 0 and standard deviation 1, z equals the cosine, so a query vector
+    is its own list of scores. _unitise is stubbed out so those scores survive unchanged;
+    the real normalisation is covered by the centring tests above and by
+    test_queries_are_centred_and_renormalised. The real Z_MATCH_THRESHOLD is a calibration
+    constant rather than logic, so it is scaled down here to keep the vectors readable.
+    """
+    index = {
+        "raw": AXES,
+        "centred": AXES,
+        "mean_row": np.zeros(3, dtype=np.float32),
+        "background_mean": np.zeros(3, dtype=np.float32),
+        "background_std": np.ones(3, dtype=np.float32),
+    }
     monkeypatch.setattr(dc, "table_text", lambda: ROWS)
-    monkeypatch.setattr(dc, "row_embeddings", lambda rows, text: AXES)
+    monkeypatch.setattr(dc, "row_embeddings", lambda rows, text: index)
     monkeypatch.setattr(dc, "_load", lambda: (None, None, None))
     monkeypatch.setattr(dc, "_MEMORY_CACHE", {})
+    monkeypatch.setattr(dc, "_unitise", lambda vectors: vectors)
+    monkeypatch.setattr(dc, "Z_MATCH_THRESHOLD", 0.5)
+    monkeypatch.setattr(dc, "IMAGE_SUGGESTION_THRESHOLD", 0.18)
 
     def queries(by_name: dict[str, np.ndarray]):
         def _embed_text(model, tokenizer, texts):
@@ -203,32 +327,54 @@ def q(name: str) -> str:
     return dc.ROW_TEMPLATE.format(item=name)
 
 
-def test_a_clear_text_match_is_confident(fake_table):
-    fake_table({q("flip phone"): sims(0.95, 0.60, 0.10)})
+def test_a_shared_word_makes_a_match_confident(fake_table):
+    fake_table({q("flip phone"): sims(0.95, 0.10, 0.10)})
     matches = dc.match_objects(["flip phone"])["flip phone"]
     assert [m.row.item for m in matches] == ["Motorola RAZR flip phone"]
     assert matches[0].confident is True
-    assert matches[0].similarity == pytest.approx(0.95)
+    assert matches[0].z == pytest.approx(0.95, abs=0.01)
+
+
+def test_a_semantic_match_with_no_shared_word_is_only_a_candidate(fake_table):
+    # Points straight at the RAZR row, but "handset" shares no word with it.
+    fake_table({q("handset"): sims(0.95, 0.10, 0.10)})
+    matches = dc.match_objects(["handset"])["handset"]
+    assert [m.row.item for m in matches] == ["Motorola RAZR flip phone"]
+    assert matches[0].confident is False
 
 
 def test_a_row_below_the_threshold_is_not_returned(fake_table):
-    # Close to everything and clearly nothing: the best row is still under the threshold.
-    fake_table({q("cathedral"): sims(0.70, 0.60, 0.50)})
+    fake_table({q("cathedral"): sims(0.30, 0.20, 0.10)})
     assert dc.match_objects(["cathedral"])["cathedral"] == []
 
 
-def test_a_tie_is_returned_but_never_confident(fake_table):
-    # Two rows above the threshold with less than TEXT_MATCH_MARGIN between them.
-    fake_table({q("earbuds"): sims(0.90, 0.89, 0.10)})
+def test_rows_are_ranked_by_z_not_by_raw_cosine(fake_table, monkeypatch):
+    """A hub row with a higher cosine must lose to a row that stands out from its baseline."""
+    index = {
+        "raw": AXES,
+        "centred": AXES,
+        "mean_row": np.zeros(3, dtype=np.float32),
+        # The RAZR row is a hub: it sits 0.80 from anything by default.
+        "background_mean": np.asarray([0.80, 0.0, 0.0], dtype=np.float32),
+        "background_std": np.ones(3, dtype=np.float32),
+    }
+    monkeypatch.setattr(dc, "row_embeddings", lambda rows, text: index)
+    fake_table({q("earbuds"): sims(0.90, 0.70, 0.10)})
+
     matches = dc.match_objects(["earbuds"])["earbuds"]
-    assert len(matches) == 2
-    assert all(not m.confident for m in matches)
+    # Raw cosine would put the RAZR row first (0.90 > 0.70); z puts the AirPods row first.
+    assert matches[0].row.item == "AirPods wireless earbuds"
+    assert matches[0].similarity == pytest.approx(0.70, abs=0.01)
+    assert matches[0].z == pytest.approx(0.70, abs=0.01)
 
 
-def test_only_the_best_row_can_be_confident(fake_table):
-    fake_table({q("phone"): sims(0.95, 0.85, 0.10)})
-    matches = dc.match_objects(["phone"])["phone"]
-    assert [m.confident for m in matches] == [True, False]
+def test_confidence_is_not_limited_to_the_top_row(fake_table):
+    """The lexically matching row can sit below a closer but unrelated neighbour."""
+    fake_table({q("wireless earbuds"): sims(0.95, 0.80, 0.10)})
+    matches = dc.match_objects(["wireless earbuds"])["wireless earbuds"]
+    assert [m.row.item for m in matches] == [
+        "Motorola RAZR flip phone", "AirPods wireless earbuds"]
+    assert [m.confident for m in matches] == [False, True]
 
 
 def test_top_k_limits_the_rows_returned(fake_table):
@@ -238,20 +384,20 @@ def test_top_k_limits_the_rows_returned(fake_table):
 
 
 def test_every_name_gets_an_entry(fake_table):
-    fake_table({q("flip phone"): sims(0.95, 0.60, 0.10),
-                q("cathedral"): sims(0.70, 0.60, 0.50)})
+    fake_table({q("flip phone"): sims(0.95, 0.10, 0.10),
+                q("cathedral"): sims(0.30, 0.20, 0.10)})
     matches = dc.match_objects(["flip phone", "cathedral"])
     assert set(matches) == {"flip phone", "cathedral"}
     assert matches["cathedral"] == []
     assert len(matches["flip phone"]) == 1
 
 
-def test_image_suggestions_use_their_own_threshold(fake_table):
+def test_image_suggestions_use_the_raw_cosine_and_report_no_z(fake_table):
     fake_table({})
-    # 0.50 against the AirPods row: over the image threshold, nowhere near the text one.
     hits = dc.suggest_from_image(sims(0.05, 0.50, 0.05))
     assert [h.row.item for h in hits] == ["AirPods wireless earbuds"]
-    assert dc.IMAGE_SUGGESTION_THRESHOLD <= hits[0].similarity < dc.TEXT_MATCH_THRESHOLD
+    assert hits[0].similarity == pytest.approx(0.50, abs=0.01)
+    assert hits[0].z is None                   # no text background applies to an image
 
 
 def test_a_weak_image_resemblance_suggests_nothing(fake_table):
@@ -269,7 +415,7 @@ def test_image_suggestions_are_never_marked_confident(fake_table):
 # --- the assembled signal -----------------------------------------------------------------
 
 def test_lookup_bounds_the_date_from_a_confident_match(fake_table):
-    fake_table({q("flip phone"): sims(0.95, 0.60, 0.10)})
+    fake_table({q("flip phone"): sims(0.95, 0.10, 0.10)})
     out = dc.lookup(["flip phone"], sims(0.10, 0.10, 0.10))
     assert out["table_not_before_year"] == 2004
     match = out["matches"]["flip phone"][0]
@@ -281,44 +427,53 @@ def test_lookup_bounds_the_date_from_a_confident_match(fake_table):
 
 
 def test_lookup_takes_the_latest_of_several_confident_matches(fake_table):
-    fake_table({q("flip phone"): sims(0.95, 0.60, 0.10),
-                q("airpods"): sims(0.60, 0.95, 0.10)})
+    fake_table({q("flip phone"): sims(0.95, 0.10, 0.10),
+                q("airpods"): sims(0.10, 0.95, 0.10)})
     out = dc.lookup(["flip phone", "airpods"], sims(0.10, 0.10, 0.10))
     assert out["table_not_before_year"] == 2016
 
 
 def test_lookup_ignores_image_suggestions(fake_table):
     # The image looks exactly like the AirPods row, but nothing matched by name.
-    fake_table({q("cathedral"): sims(0.70, 0.60, 0.50)})
+    fake_table({q("cathedral"): sims(0.30, 0.20, 0.10)})
     out = dc.lookup(["cathedral"], sims(0.05, 0.95, 0.05))
     assert [s["item"] for s in out["image_suggestions"]] == ["AirPods wireless earbuds"]
     assert out["matches"]["cathedral"] == []
     assert out["table_not_before_year"] is None          # suggestions are unverified
 
 
-def test_lookup_ignores_matches_that_are_not_confident(fake_table):
-    fake_table({q("earbuds"): sims(0.90, 0.89, 0.10)})
-    out = dc.lookup(["earbuds"], sims(0.10, 0.10, 0.10))
-    assert len(out["matches"]["earbuds"]) == 2
+def test_lookup_ignores_a_candidate_with_no_shared_word(fake_table):
+    """A strong row reached only semantically must not date the photo."""
+    fake_table({q("handset"): sims(0.95, 0.10, 0.10)})
+    out = dc.lookup(["handset"], sims(0.10, 0.10, 0.10))
+    assert out["matches"]["handset"][0]["not_before_year"] == 2004
+    assert out["matches"]["handset"][0]["confident"] is False
     assert out["table_not_before_year"] is None
 
 
 def test_lookup_ignores_a_confident_match_with_no_bound(fake_table):
     # The bell-bottoms row is a weak clue, so it carries no "not before" year.
-    fake_table({q("flared jeans"): sims(0.10, 0.10, 0.95)})
-    out = dc.lookup(["flared jeans"], sims(0.10, 0.10, 0.10))
-    assert out["matches"]["flared jeans"][0]["confident"] is True
-    assert out["matches"]["flared jeans"][0]["not_before_year"] is None
+    fake_table({q("bell-bottom jeans"): sims(0.10, 0.10, 0.95)})
+    out = dc.lookup(["bell-bottom jeans"], sims(0.10, 0.10, 0.10))
+    assert out["matches"]["bell-bottom jeans"][0]["confident"] is True
+    assert out["matches"]["bell-bottom jeans"][0]["not_before_year"] is None
     assert out["table_not_before_year"] is None
 
 
 def test_match_dicts_carry_only_the_documented_fields(fake_table):
-    fake_table({q("flip phone"): sims(0.95, 0.60, 0.10)})
+    fake_table({q("flip phone"): sims(0.95, 0.10, 0.10)})
     out = dc.lookup(["flip phone"], sims(0.95, 0.10, 0.10))
     expected = {"item", "appears", "peak", "clue_type",
-                "not_before_year", "similarity", "confident"}
+                "not_before_year", "similarity", "z", "confident"}
     assert set(out["matches"]["flip phone"][0]) == expected
     assert set(out["image_suggestions"][0]) == expected
+
+
+def test_the_calibrated_constants_are_the_ones_that_were_measured():
+    """A guard on the calibration: changing these needs a re-run, not a guess."""
+    assert dc.Z_MATCH_THRESHOLD == 5.0
+    assert dc.IMAGE_SUGGESTION_THRESHOLD == 0.18
+    assert len(dc.BACKGROUND_QUERIES) == 33
 
 
 # --- how core and the tool report the signal ------------------------------------------------
