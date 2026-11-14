@@ -8,6 +8,10 @@ prompts, one per candidate year, and the years are scored by similarity.
 The paper scores the whole image with prompts that name no object. Here the object name
 is put into the prompt, so each object gets its own estimate of its build year. That
 extension, and the interval rule below, are not evaluated in the paper.
+
+A third, independent signal comes from core.dating_clues: a curated table of clothing and
+objects with known dates, searched by meaning with the same model. The image is encoded
+once here and reused for both signals.
 """
 import io
 from datetime import date
@@ -95,8 +99,19 @@ def time_from_objects(image_bytes: bytes, objects: list[str]) -> dict:
             "tolerance_years": round(tol, 1),
         })
 
-    return {
+    result = {
         "current_year": today,
         "image_taken_not_before_year": max(r["built_from_year"] for r in results),
         "objects": results,
     }
+
+    # A separate signal, and a separate failure: the table lookup needs the data file, so a
+    # problem there is reported rather than losing the object intervals above.
+    try:
+        from geotrace.core import dating_clues
+
+        result["dating_clues"] = dating_clues.lookup(names, img)
+    except Exception as exc:  # noqa: BLE001 - the table is one signal of three, not the whole answer
+        result["dating_clues_error"] = f"{type(exc).__name__}: {exc}"
+
+    return result

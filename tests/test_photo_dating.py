@@ -73,6 +73,10 @@ INTERVALS = {
     "image_taken_not_before_year": 1975,
     "objects": [{"object": "bicycle", "built_from_year": 1975, "built_until_year": 2026,
                  "tolerance_years": 5.0}],
+    # core.time_objects always returns either dating_clues or dating_clues_error; the table
+    # lookup itself is covered in tests/test_dating_clues.py.
+    "dating_clues": {"matches": {"bicycle": []}, "image_suggestions": [],
+                     "table_not_before_year": None},
 }
 DATING = {"estimated_year": 1982, "expected_year": 1983.4, "interval_80pct": [1974, 1991],
           "confidence": 0.12, "model_year_range": [1950, 1999]}
